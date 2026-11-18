@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>แกลเลอรีภาพ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Playfair+Display:wght@600&family=Prompt:wght@400;600&family=Mali:wght@500;700&family=Noto+Serif+Thai:wght@400;600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero" id="hero">
+  <img id="heroA" alt="">
+  <img id="heroB" alt="">
+  <div class="hero-actions">
+    <button class="icon-btn" id="themeBtn" title="สลับโหมดสว่าง/มืด">◐</button>
+  </div>
+  <div class="hero-text">
+    <div class="brand" id="brand"></div>
+    <div class="subtitle" id="subtitle"></div>
+    <h1 id="title"></h1>
+    <div class="meta" id="meta"></div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="toolbar" id="toolbar">
+    <span class="count" id="count"></span>
+    <button class="btn ghost small" id="densityBtn" type="button">⊞ ขนาดภาพ</button>
+    <button class="btn accent small" id="playBtn" type="button">▶ เล่นสไลด์โชว์</button>
+  </div>
+  <div class="status" id="status"></div>
+  <div class="gallery grid" id="gallery"></div>
+</main>
+<footer class="foot" id="foot"></footer>
+
+<div class="lightbox" id="lightbox">
+  <div class="lb-top">
+    <span class="counter" id="lbCounter"></span>
+    <button class="lb-btn" id="lbPlay" type="button">▶ สไลด์โชว์</button>
+    <a class="lb-btn" id="lbDownload" target="_blank" rel="noopener">⬇ ดาวน์โหลด</a>
+    <button class="lb-btn" id="lbFull" type="button" title="เต็มจอ">⛶</button>
+    <button class="lb-btn" id="lbClose" type="button">✕</button>
+  </div>
+  <div class="lb-stage" id="lbStage">
+    <button class="lb-nav lb-prev" id="lbPrev" type="button">‹</button>
+    <img id="lbImg" alt="">
+    <button class="lb-nav lb-next" id="lbNext" type="button">›</button>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const THUMB = 600, FULL = 2000;
+let cfg = null, files = [], dense = false;
+let lbIndex = -1, playTimer = null, heroTimer = null, heroFront = 'heroA';
+const loader = createThumbLoader();
+
+// ---------- เริ่มต้น ----------
+cfg = decodeConfig(new URLSearchParams(location.search).get('c') || '');
+if(!cfg || !cfg.f){
+  showInvalid();
+}else{
+  applyTheme(cfg);
+  renderHeader();
+  loadPhotos();
+}
+
+function showInvalid(){
+  $('hero').classList.add('plain');
+  $('title').textContent = 'ลิงก์ไม่ถูกต้อง';
+  $('toolbar').classList.add('hidden');
+  setStatus('status', 'ลิงก์นี้ไม่สมบูรณ์ กรุณาติดต่อผู้ส่งลิงก์', 'error');
+}
+
+function renderHeader(){
+  $('brand').textContent = cfg.b;
+  $('subtitle').textContent = cfg.s;
+  $('title').textContent = cfg.t || 'แกลเลอรีภาพ';
+  $('foot').textContent = cfg.b ? '© ' + cfg.b : '';
+  document.title = [cfg.t, cfg.b].filter(Boolean).join(' — ') || 'แกลเลอรีภาพ';
+  if(cfg.cv === 'none') $('hero').classList.add('plain');
+  if(!cfg.dl) $('lbDownload').classList.add('hidden');
+}
+
+async function loadPhotos(){
+  setStatus('status', 'กำลังโหลดภาพ...', 'info');
+  try{
+    files = await fetchDriveFiles(cfg.f, cfg.so);
+    setStatus('status', files.length ? '' : 'ยังไม่มีภาพในอัลบั้มนี้', 'info');
+    $('meta').textContent = [cfg.d, files.length + ' ภาพ'].filter(Boolean).join(' · ');
+    $('count').textContent = files.length + ' ภาพ';
+    $('toolbar').classList.toggle('hidden', !files.length);
+    renderGallery();
+    renderHero();
+  }catch(err){
+    $('toolbar').classList.add('hidden');
+    setStatus('status', friendlyError(err), 'error');
+  }
+}
+
+// ---------- หน้าปก ----------
+function renderHero(){
+  if(cfg.cv === 'none' || !files.length) return;
+  let start = files[0];
+  if(cfg.cv === 'pick' && cfg.ci) start = files.find(f => f.id === cfg.ci) || files[0];
+  showHero(start);
+  if(cfg.cv === 'slideshow' && files.length > 1){
+    let i = 0;
+    heroTimer = setInterval(() => { i = (i + 1) % files.length; showHero(files[i]); }, 6000);
+  }
+}
+function showHero(file){
+  const cur = $(heroFront);
+  const next = heroFront === 'heroA' ? $('heroB') : $('heroA');
+  const pre = new Image();
+  let triedAlt = false;
+  pre.onload = () => {
+    next.src = pre.src;
+    next.classList.remove('kb');
+    void next.offsetWidth;            // เริ่มเอฟเฟกต์ซูมใหม่
+    next.classList.add('show', 'kb');
+    cur.classList.remove('show');
+    heroFront = next.id;
+  };
+  pre.onerror = () => { if(!triedAlt){ triedAlt = true; pre.src = driveThumbUrl(file.id, 1600, 1); } };
+  pre.src = thumbUrl(file, 1600);
+}
+
+// ---------- แกลเลอรี ----------
+function ratioOf(f){
+  const m = f.imageMediaMetadata;
+  if(!m || !m.width || !m.height) return '3/4';
+  return (m.rotation === 1 || m.rotation === 3) ? `${m.height}/${m.width}` : `${m.width}/${m.height}`;
+}
+function renderGallery(){
+  loader.reset();
+  const g = $('gallery');
+  g.innerHTML = '';
+  g.className = 'gallery ' + cfg.ly + (dense ? ' dense' : '');
+  files.forEach((f, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    if(cfg.ly === 'masonry') cell.style.aspectRatio = ratioOf(f);
+    const img = document.createElement('img');
+    img.alt = f.name || '';
+    img.decoding = 'async';
+    cell.appendChild(img);
+    cell.addEventListener('click', () => openLightbox(i));
+    g.appendChild(cell);
+    loader.watch(img, f, THUMB);
+  });
+}
+$('densityBtn').addEventListener('click', () => { dense = !dense; $('gallery').classList.toggle('dense', dense); });
+$('themeBtn').addEventListener('click', () => document.body.classList.toggle('dark'));
+
+// ---------- Lightbox ----------
+function openLightbox(i){
+  lbIndex = i;
+  showLb();
+  $('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox(){
+  stopPlay();
+  $('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+  lbIndex = -1;
+  if(document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+function showLb(){
+  const n = files.length;
+  if(!n) return;
+  lbIndex = ((lbIndex % n) + n) % n;
+  const idx = lbIndex, f = files[idx];
+  setImg($('lbImg'), f, THUMB);              // แสดงรูปเล็กที่โหลดไว้แล้วทันที
+  const hi = new Image();
+  let triedAlt = false;
+  hi.onload = () => { if(lbIndex === idx) $('lbImg').src = hi.src; };
+  hi.onerror = () => { if(!triedAlt){ triedAlt = true; hi.src = driveThumbUrl(f.id, FULL, 1); } };
+  hi.src = thumbUrl(f, FULL);
+  $('lbCounter').textContent = `${idx + 1} / ${n}`;
+  if(cfg.dl) $('lbDownload').href = `https://drive.google.com/uc?export=download&id=${f.id}`;
+  [1, -1].forEach(d => { new Image().src = thumbUrl(files[(idx + d + n) % n], FULL); });   // โหลดรูปถัดไปรอไว้
+}
+function go(step){ stopPlay(); lbIndex += step; showLb(); }
+
+function startPlay(){
+  stopPlay();
+  $('lbPlay').textContent = '❚❚ หยุด';
+  playTimer = setInterval(() => { lbIndex++; showLb(); }, 4000);
+}
+function stopPlay(){
+  clearInterval(playTimer); playTimer = null;
+  $('lbPlay').textContent = '▶ สไลด์โชว์';
+}
+function goFullscreen(){
+  const el = $('lightbox');
+  if(el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen().catch(() => {});
+}
+
+$('lbClose').addEventListener('click', closeLightbox);
+$('lbPrev').addEventListener('click', e => { e.stopPropagation(); go(-1); });
+$('lbNext').addEventListener('click', e => { e.stopPropagation(); go(1); });
+$('lbPlay').addEventListener('click', () => playTimer ? stopPlay() : startPlay());
+$('lbFull').addEventListener('click', () => document.fullscreenElement ? document.exitFullscreen() : goFullscreen());
+$('lbStage').addEventListener('click', e => { if(e.target.id === 'lbStage') closeLightbox(); });
+$('playBtn').addEventListener('click', () => { openLightbox(0); goFullscreen(); startPlay(); });
+
+document.addEventListener('keydown', e => {
+  if(!$('lightbox').classList.contains('open')) return;
+  if(e.key === 'Escape') closeLightbox();
+  if(e.key === 'ArrowLeft') go(-1);
+  if(e.key === 'ArrowRight') go(1);
+  if(e.key === ' '){ e.preventDefault(); playTimer ? stopPlay() : startPlay(); }
+});
+
+let touchX = null;
+$('lbStage').addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+$('lbStage').addEventListener('touchend', e => {
+  if(touchX === null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  touchX = null;
+  if(Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
+});
+</script>
+</body>
+</html>
