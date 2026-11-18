@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drive Gallery Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Playfair+Display:wght@600&family=Prompt:wght@400;600&family=Mali:wght@500;700&family=Noto+Serif+Thai:wght@400;600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<div class="builder">
+  <header class="app-header full">
+    <div class="app-logo">◎</div>
+    <div>
+      <h1>Drive Gallery Builder</h1>
+      <p>สร้างหน้านำเสนอภาพจาก Google Drive แล้วส่งลิงก์ให้ลูกค้า</p>
+    </div>
+  </header>
+  <div class="status error full" id="keyWarning"></div>
+
+  <div class="form-col" id="form">
+    <!-- 1. Google Drive -->
+    <section class="card">
+      <h2><span class="step">1</span> โฟลเดอร์ Google Drive</h2>
+      <div class="field">
+        <label>ลิงก์โฟลเดอร์ (ต้องแชร์แบบ "ทุกคนที่มีลิงก์ดูได้")</label>
+        <div class="row">
+          <input type="text" id="folderInput" class="grow" placeholder="https://drive.google.com/drive/folders/...">
+          <button class="btn" id="verifyBtn" type="button">ตรวจสอบ</button>
+        </div>
+      </div>
+      <div class="status" id="folderStatus"></div>
+    </section>
+
+    <!-- 2. ข้อมูลงาน -->
+    <section class="card">
+      <h2><span class="step">2</span> ข้อมูลงาน</h2>
+      <div class="field"><label>ชื่อสตูดิโอ / แบรนด์</label><input type="text" id="brand" placeholder="เช่น Bangkok Wedding Studio"></div>
+      <div class="field"><label>ข้อความนำ</label><input type="text" id="subtitle" placeholder="เช่น ยินดีกับ"></div>
+      <div class="field"><label>ชื่อเรื่อง / ชื่อลูกค้า</label><input type="text" id="title" placeholder="เช่น กันต์ & แนน"></div>
+      <div class="field"><label>วันที่ / รายละเอียด</label><input type="text" id="date" placeholder="เช่น 26 สิงหาคม 2569"></div>
+    </section>
+
+    <!-- 3. หน้าปก -->
+    <section class="card">
+      <h2><span class="step">3</span> ภาพหน้าปก</h2>
+      <div class="field">
+        <select id="coverMode">
+          <option value="first">ใช้ภาพแรกในอัลบั้ม</option>
+          <option value="pick">เลือกภาพเอง</option>
+          <option value="slideshow">สไลด์โชว์ (เปลี่ยนภาพอัตโนมัติ)</option>
+          <option value="none">ไม่มีภาพหน้าปก</option>
+        </select>
+      </div>
+      <p class="hint">แตะรูปด้านล่างเพื่อเลือกเป็นภาพหน้าปก (จะแสดงหลังตรวจสอบโฟลเดอร์แล้ว)</p>
+      <div class="cover-grid hidden" id="coverGrid"></div>
+    </section>
+
+    <!-- 4. รูปแบบ -->
+    <section class="card">
+      <h2><span class="step">4</span> รูปแบบการแสดงผล</h2>
+      <div class="two">
+        <div class="field"><label>เลย์เอาต์</label>
+          <select id="layout"><option value="grid">กริดเท่ากัน</option><option value="masonry">Masonry (ตามสัดส่วนภาพ)</option></select>
+        </div>
+        <div class="field"><label>เรียงภาพ</label>
+          <select id="sort"><option value="new">ใหม่ → เก่า</option><option value="old">เก่า → ใหม่</option><option value="name">ตามชื่อไฟล์</option></select>
+        </div>
+      </div>
+      <div class="field"><label>ฟอนต์ชื่อเรื่อง</label>
+        <select id="font"></select>
+        <div class="font-sample" id="fontSample">Aa กันต์ & แนน</div>
+      </div>
+      <div class="field"><label>สีหลัก</label>
+        <div class="swatches" id="accentSwatches"><input type="color" id="accent" value="#A9814B" title="เลือกสีเอง"></div>
+      </div>
+      <div class="field"><label>สีพื้นหลัง</label>
+        <div class="swatches" id="bgSwatches"><input type="color" id="bgColor" value="#F7F3EC" title="เลือกสีเอง"></div>
+      </div>
+      <label class="check-row"><input type="checkbox" id="darkMode"> เปิดด้วยโหมดมืด</label>
+      <label class="check-row"><input type="checkbox" id="allowDownload" checked> อนุญาตให้ลูกค้าดาวน์โหลดภาพ</label>
+    </section>
+
+    <!-- 5. สร้างลิงก์ -->
+    <section class="card">
+      <h2><span class="step">5</span> สร้างลิงก์</h2>
+      <button class="btn accent block" id="generateBtn" type="button">สร้างลิงก์นำเสนอ</button>
+      <div class="status" id="generateStatus"></div>
+      <div class="result hidden" id="result">
+        <div class="link-box">
+          <input type="text" id="linkOutput" readonly>
+          <button class="btn small" id="copyBtn" type="button">คัดลอก</button>
+        </div>
+        <div class="qr-wrap">
+          <div class="qr" id="qrBox"></div>
+          <div class="qr-actions">
+            <a class="btn ghost small" id="openLink" target="_blank" rel="noopener">เปิดหน้านำเสนอ ↗</a>
+            <button class="btn ghost small" id="downloadQr" type="button">ดาวน์โหลด QR</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. ประวัติ -->
+    <section class="card">
+      <h2>ลิงก์ที่เคยสร้าง</h2>
+      <div id="historyList"></div>
+      <p class="hint" id="historyEmpty">ยังไม่มีลิงก์ (บันทึกเฉพาะในเบราว์เซอร์นี้)</p>
+    </section>
+  </div>
+
+  <div class="preview-col">
+    <section class="card">
+      <div class="preview-head">
+        <h2>ตัวอย่าง</h2>
+        <div class="seg" id="deviceSeg">
+          <button type="button" data-device="desktop" class="active">คอม</button>
+          <button type="button" data-device="mobile">มือถือ</button>
+        </div>
+        <button class="btn ghost small" id="refreshPreview" type="button">รีเฟรช</button>
+      </div>
+      <div class="frame-wrap" id="frameWrap">
+        <iframe class="preview-frame" id="previewFrame" title="ตัวอย่างหน้านำเสนอ"></iframe>
+        <div class="preview-empty" id="previewEmpty">ใส่ลิงก์ Google Drive แล้วกด "ตรวจสอบ" เพื่อดูตัวอย่าง</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const ACCENTS = ['#A9814B', '#33473B', '#1B2A4A', '#9A5F5A', '#3A3733'];
+const BGS = ['#F7F3EC', '#F5E9E3', '#E9F1EA', '#EFEBE6', '#FFFFFF'];
+const HISTORY_KEY = 'driveGallery:history';
+
+let verifiedFolderId = '';
+let verifiedFiles = [];
+let selectedCoverId = '';
+const coverLoader = createThumbLoader({ rootMargin: '200px 0px' });
+
+// ---------- เริ่มต้น ----------
+if(!hasApiKey()) setStatus('keyWarning', 'ยังไม่ได้ใส่ Google API Key ในไฟล์ config.js', 'error');
+
+Object.entries(FONTS).forEach(([key, f]) => {
+  const o = document.createElement('option');
+  o.value = key; o.textContent = f.label;
+  $('font').appendChild(o);
+});
+function updateFontSample(){ $('fontSample').style.fontFamily = FONTS[$('font').value].css; }
+$('font').addEventListener('change', updateFontSample);
+updateFontSample();
+
+function makeSwatches(boxId, inputId, colors){
+  const box = $(boxId), input = $(inputId);
+  colors.forEach(c => {
+    const s = document.createElement('button');
+    s.type = 'button'; s.className = 'swatch'; s.style.background = c; s.dataset.color = c; s.title = c;
+    s.addEventListener('click', () => { input.value = c; syncSwatches(); schedulePreview(); });
+    box.insertBefore(s, input);
+  });
+  input.addEventListener('input', syncSwatches);
+}
+function syncSwatches(){
+  [['accentSwatches', 'accent'], ['bgSwatches', 'bgColor']].forEach(([boxId, inputId]) => {
+    const v = $(inputId).value.toLowerCase();
+    $(boxId).querySelectorAll('.swatch').forEach(s => s.classList.toggle('selected', s.dataset.color.toLowerCase() === v));
+  });
+}
+makeSwatches('accentSwatches', 'accent', ACCENTS);
+makeSwatches('bgSwatches', 'bgColor', BGS);
+syncSwatches();
+
+// ---------- อ่าน/เติมฟอร์ม ----------
+function readForm(){
+  const coverMode = $('coverMode').value;
+  return normalizeConfig({
+    f: parseFolderId($('folderInput').value) || '',
+    b: $('brand').value.trim(), s: $('subtitle').value.trim(),
+    t: $('title').value.trim(), d: $('date').value.trim(),
+    ly: $('layout').value, so: $('sort').value,
+    cv: coverMode, ci: coverMode === 'pick' ? selectedCoverId : '',
+    fn: $('font').value, a: $('accent').value, bg: $('bgColor').value,
+    dk: $('darkMode').checked ? 1 : 0, dl: $('allowDownload').checked ? 1 : 0,
+  });
+}
+function fillForm(c){
+  $('folderInput').value = c.f ? `https://drive.google.com/drive/folders/${c.f}` : '';
+  $('brand').value = c.b; $('subtitle').value = c.s; $('title').value = c.t; $('date').value = c.d;
+  $('layout').value = c.ly; $('sort').value = c.so; $('coverMode').value = c.cv;
+  selectedCoverId = c.ci;
+  $('font').value = c.fn; updateFontSample();
+  $('accent').value = c.a; $('bgColor').value = c.bg; syncSwatches();
+  $('darkMode').checked = !!c.dk; $('allowDownload').checked = !!c.dl;
+}
+
+// ---------- ตรวจสอบโฟลเดอร์ ----------
+async function verifyFolder(){
+  const id = parseFolderId($('folderInput').value);
+  if(!id){ setStatus('folderStatus', 'ลิงก์โฟลเดอร์ไม่ถูกต้อง', 'error'); return; }
+  $('verifyBtn').disabled = true;
+  setStatus('folderStatus', 'กำลังตรวจสอบ...', 'info');
+  try{
+    const [info, files] = await Promise.all([
+      fetchFolderInfo(id).catch(() => null),
+      fetchDriveFiles(id, $('sort').value),
+    ]);
+    if(!files.length){
+      verifiedFolderId = '';
+      setStatus('folderStatus', 'ไม่พบภาพในโฟลเดอร์นี้ — ตรวจว่ามีไฟล์ภาพ และตั้งแชร์เป็น "ทุกคนที่มีลิงก์ดูได้"', 'error');
+      return;
+    }
+    verifiedFolderId = id;
+    verifiedFiles = files;
+    if(info && info.name && !$('title').value.trim()) $('title').value = info.name;
+    if(selectedCoverId && !files.some(f => f.id === selectedCoverId)) selectedCoverId = '';
+    setStatus('folderStatus', `พบ ${files.length} ภาพ` + (info && info.name ? ` ในโฟลเดอร์ "${info.name}"` : ''), 'ok');
+    renderCoverPicker();
+    updatePreview();
+  }catch(err){
+    verifiedFolderId = '';
+    setStatus('folderStatus', friendlyError(err), 'error');
+  }finally{
+    $('verifyBtn').disabled = false;
+  }
+}
+$('verifyBtn').addEventListener('click', verifyFolder);
+$('folderInput').addEventListener('change', verifyFolder);
+$('folderInput').addEventListener('keydown', e => { if(e.key === 'Enter') verifyFolder(); });
+
+function renderCoverPicker(){
+  coverLoader.reset();
+  const g = $('coverGrid');
+  g.innerHTML = '';
+  verifiedFiles.forEach(f => {
+    const cell = document.createElement('div');
+    cell.className = 'cover-cell' + (f.id === selectedCoverId ? ' selected' : '');
+    cell.title = f.name;
+    const img = document.createElement('img');
+    img.alt = '';
+    cell.appendChild(img);
+    cell.addEventListener('click', () => {
+      selectedCoverId = f.id;
+      $('coverMode').value = 'pick';
+      g.querySelectorAll('.cover-cell').forEach(c => c.classList.toggle('selected', c === cell));
+      schedulePreview(300);
+    });
+    g.appendChild(cell);
+    coverLoader.watch(img, f, 200);
+  });
+  g.classList.toggle('hidden', !verifiedFiles.length);
+}
+
+// ---------- ตัวอย่าง ----------
+let previewTimer = null;
+function schedulePreview(delay = 900){ clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, delay); }
+function updatePreview(){
+  const cfg = readForm();
+  if(!cfg.f || cfg.f !== verifiedFolderId) return;
+  $('previewEmpty').classList.add('hidden');
+  $('previewFrame').src = buildViewUrl(cfg);
+}
+['input', 'change'].forEach(ev => $('form').addEventListener(ev, e => {
+  if(e.target.id === 'folderInput' || e.target.id === 'linkOutput') return;
+  schedulePreview();
+}));
+$('refreshPreview').addEventListener('click', updatePreview);
+$('deviceSeg').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  $('deviceSeg').querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+  $('frameWrap').classList.toggle('mobile', btn.dataset.device === 'mobile');
+});
+
+// ---------- สร้างลิงก์ ----------
+$('generateBtn').addEventListener('click', async () => {
+  let cfg = readForm();
+  if(!cfg.f){ setStatus('generateStatus', 'กรุณาใส่ลิงก์โฟลเดอร์ Google Drive ที่ถูกต้อง', 'error'); return; }
+  if(cfg.f !== verifiedFolderId){
+    await verifyFolder();
+    if(verifiedFolderId !== cfg.f){ setStatus('generateStatus', 'ตรวจสอบโฟลเดอร์ไม่ผ่าน กรุณาแก้ไขที่ขั้นตอนที่ 1', 'error'); return; }
+    cfg = readForm();
+  }
+  if(cfg.cv === 'pick' && !cfg.ci){ setStatus('generateStatus', 'กรุณาเลือกภาพหน้าปกในขั้นตอนที่ 3', 'error'); return; }
+
+  const url = buildViewUrl(cfg);
+  setStatus('generateStatus', '');
+  $('linkOutput').value = url;
+  $('openLink').href = url;
+  renderQr(url);
+  $('result').classList.remove('hidden');
+  saveHistory(cfg, url);
+  updatePreview();
+  toast('สร้างลิงก์เรียบร้อย');
+});
+
+function renderQr(url){
+  const box = $('qrBox');
+  box.innerHTML = '';
+  try{
+    new QRCode(box, { text: url, width: 150, height: 150, correctLevel: QRCode.CorrectLevel.L });
+    $('downloadQr').disabled = false;
+  }catch(e){
+    box.textContent = 'ลิงก์ยาวเกินกว่าจะสร้าง QR';
+    $('downloadQr').disabled = true;
+  }
+}
+$('copyBtn').addEventListener('click', async () => {
+  toast(await copyText($('linkOutput').value) ? 'คัดลอกลิงก์แล้ว' : 'คัดลอกไม่สำเร็จ');
+});
+$('downloadQr').addEventListener('click', () => {
+  const canvas = $('qrBox').querySelector('canvas');
+  if(!canvas) return;
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = 'gallery-qr.png';
+  a.click();
+});
+
+// ---------- ประวัติ (เก็บในเบราว์เซอร์) ----------
+function getHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }catch(e){ return []; } }
+function setHistory(h){ localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 30))); renderHistory(); }
+function saveHistory(cfg, url){
+  const h = getHistory().filter(x => x.url !== url);
+  h.unshift({ title: cfg.t || 'ไม่มีชื่อ', date: cfg.d, url, count: verifiedFiles.length, at: Date.now() });
+  setHistory(h);
+}
+function renderHistory(){
+  const list = $('historyList');
+  const h = getHistory();
+  list.innerHTML = '';
+  $('historyEmpty').classList.toggle('hidden', h.length > 0);
+  h.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'history-item';
+    const info = document.createElement('div');
+    info.className = 'info';
+    const name = document.createElement('div'); name.className = 'name'; name.textContent = item.title;
+    const sub = document.createElement('div'); sub.className = 'sub';
+    sub.textContent = [item.date, item.count ? item.count + ' ภาพ' : '', new Date(item.at).toLocaleString('th-TH')].filter(Boolean).join(' · ');
+    info.append(name, sub);
+    const mk = (label, cls, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small ' + cls; b.textContent = label; b.addEventListener('click', fn); return b; };
+    row.append(info,
+      mk('คัดลอก', 'ghost', async () => toast(await copyText(item.url) ? 'คัดลอกลิงก์แล้ว' : 'คัดลอกไม่สำเร็จ')),
+      mk('เปิด', 'ghost', () => window.open(item.url, '_blank', 'noopener')),
+      mk('แก้ไข', 'ghost', () => {
+        const c = decodeConfig(new URL(item.url).searchParams.get('c'));
+        if(!c) return toast('อ่านข้อมูลลิงก์ไม่ได้');
+        fillForm(c);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        verifyFolder();
+      }),
+      mk('ลบ', 'danger', () => { const all = getHistory(); all.splice(i, 1); setHistory(all); }),
+    );
+    list.appendChild(row);
+  });
+}
+renderHistory();
+</script>
+</body>
+</html>
