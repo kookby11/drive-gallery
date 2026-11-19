@@ -84,7 +84,7 @@
     </section>
 
     <!-- 5. สร้างลิงก์ -->
-    <section class="card">
+    <section class="card" id="generateCard">
       <h2><span class="step">5</span> สร้างลิงก์</h2>
       <button class="btn accent block" id="generateBtn" type="button">สร้างลิงก์นำเสนอ</button>
       <div class="status" id="generateStatus"></div>
@@ -129,6 +129,13 @@
   </div>
 </div>
 
+<!-- แถบบันทึก (โผล่เฉพาะตอนกด "แก้ไข" จากประวัติ) -->
+<div class="edit-bar hidden" id="editBar">
+  <div class="edit-info"><b id="editName"></b><span>กำลังแก้ไขลิงก์ที่เคยสร้าง</span></div>
+  <button class="btn ghost" id="editCancel" type="button">ยกเลิก</button>
+  <button class="btn accent" id="editSave" type="button">บันทึกการแก้ไข</button>
+</div>
+
 <script src="config.js"></script>
 <script src="common.js"></script>
 <script>
@@ -140,6 +147,7 @@ const HISTORY_KEY = 'driveGallery:history';
 let verifiedFolderId = '';
 let verifiedFiles = [];
 let selectedCoverId = '';
+const editState = { at: null };          // ถ้ามีค่า = กำลังแก้ไขรายการในประวัติ
 const coverLoader = createThumbLoader({ rootMargin: '200px 0px' });
 
 // ---------- เริ่มต้น ----------
@@ -276,6 +284,13 @@ $('deviceSeg').addEventListener('click', e => {
 });
 
 // ---------- สร้างลิงก์ ----------
+function showResult(url){
+  $('linkOutput').value = url;
+  $('openLink').href = url;
+  renderQr(url);
+  $('result').classList.remove('hidden');
+}
+
 $('generateBtn').addEventListener('click', async () => {
   let cfg = readForm();
   if(!cfg.f){ setStatus('generateStatus', 'กรุณาใส่ลิงก์โฟลเดอร์ Google Drive ที่ถูกต้อง', 'error'); return; }
@@ -288,10 +303,7 @@ $('generateBtn').addEventListener('click', async () => {
 
   const url = buildViewUrl(cfg);
   setStatus('generateStatus', '');
-  $('linkOutput').value = url;
-  $('openLink').href = url;
-  renderQr(url);
-  $('result').classList.remove('hidden');
+  showResult(url);
   saveHistory(cfg, url);
   updatePreview();
   toast('สร้างลิงก์เรียบร้อย');
@@ -320,6 +332,52 @@ $('downloadQr').addEventListener('click', () => {
   a.click();
 });
 
+// ---------- โหมดแก้ไข (จากประวัติ) ----------
+function beginEdit(item){
+  editState.at = item.at;
+  $('editName').textContent = item.title || 'ไม่มีชื่อ';
+  $('editBar').classList.remove('hidden');
+  document.body.classList.add('editing');
+  renderHistory();
+}
+function endEdit(){
+  editState.at = null;
+  $('editBar').classList.add('hidden');
+  document.body.classList.remove('editing');
+  renderHistory();
+}
+$('editCancel').addEventListener('click', () => { endEdit(); toast('ยกเลิกการแก้ไขแล้ว'); });
+
+$('editSave').addEventListener('click', async () => {
+  let cfg = readForm();
+  if(!cfg.f){ toast('กรุณาใส่ลิงก์โฟลเดอร์ Google Drive ที่ถูกต้อง'); return; }
+  $('editSave').disabled = true;
+  try{
+    if(cfg.f !== verifiedFolderId){
+      await verifyFolder();
+      if(verifiedFolderId !== cfg.f){ toast('ตรวจสอบโฟลเดอร์ไม่ผ่าน กรุณาแก้ไขที่ขั้นตอนที่ 1'); return; }
+      cfg = readForm();
+    }
+    if(cfg.cv === 'pick' && !cfg.ci){ toast('กรุณาเลือกภาพหน้าปกในขั้นตอนที่ 3'); return; }
+
+    const url = buildViewUrl(cfg);
+    const h = getHistory();
+    const entry = { title: cfg.t || 'ไม่มีชื่อ', date: cfg.d, url, count: verifiedFiles.length, at: editState.at || Date.now(), upd: Date.now() };
+    const i = h.findIndex(x => x.at === editState.at);
+    if(i >= 0) h[i] = entry; else h.unshift(entry);     // อัปเดตรายการเดิม ไม่สร้างซ้ำ
+    setHistory(h);
+
+    setStatus('generateStatus', '');
+    showResult(url);
+    updatePreview();
+    endEdit();
+    toast('บันทึกการแก้ไขเรียบร้อย');
+    $('generateCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }finally{
+    $('editSave').disabled = false;
+  }
+});
+
 // ---------- ประวัติ (เก็บในเบราว์เซอร์) ----------
 function getHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }catch(e){ return []; } }
 function setHistory(h){ localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 30))); renderHistory(); }
@@ -335,12 +393,12 @@ function renderHistory(){
   $('historyEmpty').classList.toggle('hidden', h.length > 0);
   h.forEach((item, i) => {
     const row = document.createElement('div');
-    row.className = 'history-item';
+    row.className = 'history-item' + (editState.at !== null && item.at === editState.at ? ' editing' : '');
     const info = document.createElement('div');
     info.className = 'info';
     const name = document.createElement('div'); name.className = 'name'; name.textContent = item.title;
     const sub = document.createElement('div'); sub.className = 'sub';
-    sub.textContent = [item.date, item.count ? item.count + ' ภาพ' : '', new Date(item.at).toLocaleString('th-TH')].filter(Boolean).join(' · ');
+    sub.textContent = [item.date, item.count ? item.count + ' ภาพ' : '', new Date(item.upd || item.at).toLocaleString('th-TH')].filter(Boolean).join(' · ');
     info.append(name, sub);
     const mk = (label, cls, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small ' + cls; b.textContent = label; b.addEventListener('click', fn); return b; };
     row.append(info,
@@ -350,10 +408,14 @@ function renderHistory(){
         const c = decodeConfig(new URL(item.url).searchParams.get('c'));
         if(!c) return toast('อ่านข้อมูลลิงก์ไม่ได้');
         fillForm(c);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        beginEdit(item);                                    // เข้าโหมดแก้ไข + แถบปุ่มบันทึก
+        window.scrollTo({ top: 0, behavior: 'smooth' });    // เด้งขึ้นไปที่ฟอร์มข้อมูล
         verifyFolder();
       }),
-      mk('ลบ', 'danger', () => { const all = getHistory(); all.splice(i, 1); setHistory(all); }),
+      mk('ลบ', 'danger', () => {
+        if(item.at === editState.at) endEdit();
+        const all = getHistory(); all.splice(i, 1); setHistory(all);
+      }),
     );
     list.appendChild(row);
   });
