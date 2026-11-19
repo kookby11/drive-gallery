@@ -88,6 +88,7 @@
   <div class="lb-top">
     <span class="counter" id="lbCounter"></span>
     <button class="lb-btn" id="lbPlay" type="button"></button>
+    <button class="lb-btn" id="lbQr" type="button" data-i="lbQr"></button>
     <a class="lb-btn" id="lbDownload" target="_blank" rel="noopener" data-i="lbDownload"></a>
     <button class="lb-btn" id="lbFull" type="button" title="เต็มจอ">⛶</button>
     <button class="lb-btn" id="lbClose" type="button">✕</button>
@@ -96,6 +97,11 @@
     <button class="lb-nav lb-prev" id="lbPrev" type="button">‹</button>
     <img id="lbImg" alt="">
     <button class="lb-nav lb-next" id="lbNext" type="button">›</button>
+  </div>
+  <!-- QR สำหรับดาวน์โหลดรูปที่กำลังดู -->
+  <div class="lb-qr hidden" id="lbQrPanel">
+    <div id="lbQrBox"></div>
+    <p data-i="lbQrNote"></p>
   </div>
 </div>
 
@@ -115,6 +121,7 @@ const $ = (id) => document.getElementById(id);
 const THUMB = 600, FULL = 2000;
 let cfg = null, files = [], dense = false;
 let lbIndex = -1, playTimer = null, heroTimer = null, heroFront = 'heroA';
+let lbQrOn = false;
 const loader = createThumbLoader();
 const picked = new Set();
 let selectMode = false;
@@ -124,7 +131,8 @@ const I18N = {
   th: {
     qr:'QR Code', download:'ดาวน์โหลด', select:'เลือกรูป', language:'ภาษา', face:'ค้นหาหน้า',
     density:'⊞ ขนาดภาพ', slideshow:'▶ เล่นสไลด์โชว์', lbSlide:'▶ สไลด์โชว์', lbStop:'❚❚ หยุด',
-    lbDownload:'⬇ ดาวน์โหลด', photos:' ภาพ', loading:'กำลังโหลดภาพ...', empty:'ยังไม่มีภาพในอัลบั้มนี้',
+    lbDownload:'⬇ ดาวน์โหลด', lbQr:'QR ดาวน์โหลด', lbQrNote:'สแกนเพื่อดาวน์โหลดรูปนี้',
+    photos:' ภาพ', loading:'กำลังโหลดภาพ...', empty:'ยังไม่มีภาพในอัลบั้มนี้',
     selectAll:'เลือกทั้งหมด', clearAll:'ล้างที่เลือก', copyLink:'คัดลอกลิงก์', close:'ปิด', copied:'คัดลอกลิงก์แล้ว',
     pickFirst:'แตะรูปที่ต้องการ แล้วกดดาวน์โหลด', selectOn:'โหมดเลือกรูป: แตะรูปเพื่อเลือก',
     confirmDl:(n)=>`ดาวน์โหลด ${n} รูป? เบราว์เซอร์อาจถามให้อนุญาตการดาวน์โหลดหลายไฟล์`,
@@ -133,7 +141,8 @@ const I18N = {
   en: {
     qr:'QR Code', download:'Download', select:'Select', language:'Language', face:'Find me',
     density:'⊞ Grid size', slideshow:'▶ Slideshow', lbSlide:'▶ Slideshow', lbStop:'❚❚ Stop',
-    lbDownload:'⬇ Download', photos:' photos', loading:'Loading photos...', empty:'No photos in this album yet',
+    lbDownload:'⬇ Download', lbQr:'QR download', lbQrNote:'Scan to download this photo',
+    photos:' photos', loading:'Loading photos...', empty:'No photos in this album yet',
     selectAll:'Select all', clearAll:'Clear', copyLink:'Copy link', close:'Close', copied:'Link copied',
     pickFirst:'Tap the photos you want, then press Download', selectOn:'Select mode: tap photos to choose',
     confirmDl:(n)=>`Download ${n} photos? Your browser may ask to allow multiple downloads.`,
@@ -186,6 +195,7 @@ function renderHeader(){
   if(cfg.cv === 'none') $('hero').classList.add('plain');
   if(!cfg.dl){
     $('lbDownload').classList.add('hidden');
+    $('lbQr').classList.add('hidden');
     $('btnDownload').classList.add('hidden');
   }
 }
@@ -497,6 +507,25 @@ $('qrCopy').addEventListener('click', async () => {
 $('btnLang').addEventListener('click', toggleLang);
 $('btnFace').addEventListener('click', () => gbarToast(t('faceSoon')));
 
+// ---------- QR ดาวน์โหลดรูปที่กำลังดูใน lightbox ----------
+function renderLbQr(){
+  const box = $('lbQrBox');
+  box.innerHTML = '';
+  const f = files[lbIndex];
+  if(!f) return;
+  const url = `https://drive.google.com/uc?export=download&id=${f.id}`;
+  try{
+    new QRCode(box, { text: url, width: 132, height: 132, correctLevel: QRCode.CorrectLevel.L });
+  }catch(e){}
+}
+function setLbQr(on){
+  lbQrOn = on;
+  $('lbQrPanel').classList.toggle('hidden', !on);
+  $('lbQr').classList.toggle('on', on);
+  if(on) renderLbQr();
+}
+$('lbQr').addEventListener('click', () => setLbQr(!lbQrOn));
+
 // ---------- Lightbox ----------
 function openLightbox(i){
   lbIndex = i;
@@ -507,6 +536,7 @@ function openLightbox(i){
 }
 function closeLightbox(){
   stopPlay();
+  setLbQr(false);
   $('lightbox').classList.remove('open');
   $('gbar').classList.remove('hide');
   document.body.style.overflow = '';
@@ -526,6 +556,7 @@ function showLb(){
   hi.src = thumbUrl(f, FULL);
   $('lbCounter').textContent = `${idx + 1} / ${n}`;
   if(cfg.dl) $('lbDownload').href = `https://drive.google.com/uc?export=download&id=${f.id}`;
+  if(lbQrOn) renderLbQr();                   // เปลี่ยนรูป → QR เปลี่ยนตาม
   [1, -1].forEach(d => { new Image().src = thumbUrl(files[(idx + d + n) % n], FULL); });   // โหลดรูปถัดไปรอไว้
 }
 function go(step){ stopPlay(); lbIndex += step; showLb(); }
