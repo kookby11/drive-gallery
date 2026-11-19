@@ -99,11 +99,19 @@
   </div>
 </div>
 
+<!-- แสดง error บนหน้าเว็บ ถ้าสคริปต์พัง (ช่วยหาสาเหตุโดยไม่ต้องเปิด F12) -->
+<script>
+window.addEventListener('error', function(e){
+  var s = document.getElementById('status');
+  if(s){ s.className = 'status error'; s.textContent = 'Error: ' + e.message; }
+});
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
+(function(){
 const THUMB = 600, FULL = 2000;
 let cfg = null, files = [], dense = false;
 let lbIndex = -1, playTimer = null, heroTimer = null, heroFront = 'heroA';
@@ -523,3 +531,48 @@ function showLb(){
 function go(step){ stopPlay(); lbIndex += step; showLb(); }
 
 function startPlay(){
+  stopPlay();
+  $('lbPlay').textContent = t('lbStop');
+  playTimer = setInterval(() => { lbIndex++; showLb(); }, 4000);
+}
+function stopPlay(){
+  clearInterval(playTimer); playTimer = null;
+  $('lbPlay').textContent = t('lbSlide');
+}
+function goFullscreen(){
+  const el = $('lightbox');
+  if(el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen().catch(() => {});
+}
+
+$('lbClose').addEventListener('click', closeLightbox);
+$('lbPrev').addEventListener('click', e => { e.stopPropagation(); go(-1); });
+$('lbNext').addEventListener('click', e => { e.stopPropagation(); go(1); });
+$('lbPlay').addEventListener('click', () => playTimer ? stopPlay() : startPlay());
+$('lbFull').addEventListener('click', () => document.fullscreenElement ? document.exitFullscreen() : goFullscreen());
+$('lbStage').addEventListener('click', e => { if(e.target.id === 'lbStage') closeLightbox(); });
+$('playBtn').addEventListener('click', () => { openLightbox(0); goFullscreen(); startPlay(); });
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    if($('dlModal').classList.contains('open')){ closeDl(); return; }
+    if($('qrModal').classList.contains('open')){ closeQR(); return; }
+  }
+  if(!$('lightbox').classList.contains('open')) return;
+  if(e.key === 'Escape') closeLightbox();
+  if(e.key === 'ArrowLeft') go(-1);
+  if(e.key === 'ArrowRight') go(1);
+  if(e.key === ' '){ e.preventDefault(); playTimer ? stopPlay() : startPlay(); }
+});
+
+let touchX = null;
+$('lbStage').addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+$('lbStage').addEventListener('touchend', e => {
+  if(touchX === null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  touchX = null;
+  if(Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
+});
+})();
+</script>
+</body>
+</html>
