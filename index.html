@@ -21,67 +21,74 @@
   <div class="status error full" id="keyWarning"></div>
 
   <div class="form-col" id="form">
-    <!-- 1. Google Drive -->
-    <section class="card">
-      <h2><span class="step">1</span> โฟลเดอร์ Google Drive</h2>
-      <div class="field">
-        <label>ลิงก์โฟลเดอร์ (ต้องแชร์แบบ "ทุกคนที่มีลิงก์ดูได้")</label>
-        <div class="row">
-          <input type="text" id="folderInput" class="grow" placeholder="https://drive.google.com/drive/folders/...">
-          <button class="btn" id="verifyBtn" type="button">ตรวจสอบ</button>
-        </div>
-      </div>
-      <div class="status" id="folderStatus"></div>
-    </section>
+    <!-- ฟอร์มขั้นตอน 1-4 (จะถูกย้ายเข้าหน้าต่างแก้ไขตอนกด "แก้ไข" แล้วย้ายกลับตอนปิด) -->
+    <div id="formHome">
+      <div class="form-stack" id="formMain">
 
-    <!-- 2. ข้อมูลงาน -->
-    <section class="card">
-      <h2><span class="step">2</span> ข้อมูลงาน</h2>
-      <div class="field"><label>ชื่อสตูดิโอ / แบรนด์</label><input type="text" id="brand" placeholder="เช่น Bangkok Wedding Studio"></div>
-      <div class="field"><label>ข้อความนำ</label><input type="text" id="subtitle" placeholder="เช่น ยินดีกับ"></div>
-      <div class="field"><label>ชื่อเรื่อง / ชื่อลูกค้า</label><input type="text" id="title" placeholder="เช่น กันต์ & แนน"></div>
-      <div class="field"><label>วันที่ / รายละเอียด</label><input type="text" id="date" placeholder="เช่น 26 สิงหาคม 2569"></div>
-    </section>
+        <!-- 1. Google Drive -->
+        <section class="card">
+          <h2><span class="step">1</span> โฟลเดอร์ Google Drive</h2>
+          <div class="field">
+            <label>ลิงก์โฟลเดอร์ (ต้องแชร์แบบ "ทุกคนที่มีลิงก์ดูได้")</label>
+            <div class="row">
+              <input type="text" id="folderInput" class="grow" placeholder="https://drive.google.com/drive/folders/...">
+              <button class="btn" id="verifyBtn" type="button">ตรวจสอบ</button>
+            </div>
+          </div>
+          <div class="status" id="folderStatus"></div>
+        </section>
 
-    <!-- 3. หน้าปก -->
-    <section class="card">
-      <h2><span class="step">3</span> ภาพหน้าปก</h2>
-      <div class="field">
-        <select id="coverMode">
-          <option value="first">ใช้ภาพแรกในอัลบั้ม</option>
-          <option value="pick">เลือกภาพเอง</option>
-          <option value="slideshow">สไลด์โชว์ (เปลี่ยนภาพอัตโนมัติ)</option>
-          <option value="none">ไม่มีภาพหน้าปก</option>
-        </select>
-      </div>
-      <p class="hint">แตะรูปด้านล่างเพื่อเลือกเป็นภาพหน้าปก (จะแสดงหลังตรวจสอบโฟลเดอร์แล้ว)</p>
-      <div class="cover-grid hidden" id="coverGrid"></div>
-    </section>
+        <!-- 2. ข้อมูลงาน -->
+        <section class="card">
+          <h2><span class="step">2</span> ข้อมูลงาน</h2>
+          <div class="field"><label>ชื่อสตูดิโอ / แบรนด์</label><input type="text" id="brand" placeholder="เช่น Bangkok Wedding Studio"></div>
+          <div class="field"><label>ข้อความนำ</label><input type="text" id="subtitle" placeholder="เช่น ยินดีกับ"></div>
+          <div class="field"><label>ชื่อเรื่อง / ชื่อลูกค้า</label><input type="text" id="title" placeholder="เช่น กันต์ & แนน"></div>
+          <div class="field"><label>วันที่ / รายละเอียด</label><input type="text" id="date" placeholder="เช่น 26 สิงหาคม 2569"></div>
+        </section>
 
-    <!-- 4. รูปแบบ -->
-    <section class="card">
-      <h2><span class="step">4</span> รูปแบบการแสดงผล</h2>
-      <div class="two">
-        <div class="field"><label>เลย์เอาต์</label>
-          <select id="layout"><option value="grid">กริดเท่ากัน</option><option value="masonry">Masonry (ตามสัดส่วนภาพ)</option></select>
-        </div>
-        <div class="field"><label>เรียงภาพ</label>
-          <select id="sort"><option value="new">ใหม่ → เก่า</option><option value="old">เก่า → ใหม่</option><option value="name">ตามชื่อไฟล์</option></select>
-        </div>
+        <!-- 3. หน้าปก -->
+        <section class="card">
+          <h2><span class="step">3</span> ภาพหน้าปก</h2>
+          <div class="field">
+            <select id="coverMode">
+              <option value="first">ใช้ภาพแรกในอัลบั้ม</option>
+              <option value="pick">เลือกภาพเอง</option>
+              <option value="slideshow">สไลด์โชว์ (เปลี่ยนภาพอัตโนมัติ)</option>
+              <option value="none">ไม่มีภาพหน้าปก</option>
+            </select>
+          </div>
+          <p class="hint">แตะรูปด้านล่างเพื่อเลือกเป็นภาพหน้าปก (จะแสดงหลังตรวจสอบโฟลเดอร์แล้ว)</p>
+          <div class="cover-grid hidden" id="coverGrid"></div>
+        </section>
+
+        <!-- 4. รูปแบบ -->
+        <section class="card">
+          <h2><span class="step">4</span> รูปแบบการแสดงผล</h2>
+          <div class="two">
+            <div class="field"><label>เลย์เอาต์</label>
+              <select id="layout"><option value="grid">กริดเท่ากัน</option><option value="masonry">Masonry (ตามสัดส่วนภาพ)</option></select>
+            </div>
+            <div class="field"><label>เรียงภาพ</label>
+              <select id="sort"><option value="new">ใหม่ → เก่า</option><option value="old">เก่า → ใหม่</option><option value="name">ตามชื่อไฟล์</option></select>
+            </div>
+          </div>
+          <div class="field"><label>ฟอนต์ชื่อเรื่อง</label>
+            <select id="font"></select>
+            <div class="font-sample" id="fontSample">Aa กันต์ & แนน</div>
+          </div>
+          <div class="field"><label>สีหลัก</label>
+            <div class="swatches" id="accentSwatches"><input type="color" id="accent" value="#A9814B" title="เลือกสีเอง"></div>
+          </div>
+          <div class="field"><label>สีพื้นหลัง</label>
+            <div class="swatches" id="bgSwatches"><input type="color" id="bgColor" value="#F7F3EC" title="เลือกสีเอง"></div>
+          </div>
+          <label class="check-row"><input type="checkbox" id="darkMode"> เปิดด้วยโหมดมืด</label>
+          <label class="check-row"><input type="checkbox" id="allowDownload" checked> อนุญาตให้ลูกค้าดาวน์โหลดภาพ</label>
+        </section>
+
       </div>
-      <div class="field"><label>ฟอนต์ชื่อเรื่อง</label>
-        <select id="font"></select>
-        <div class="font-sample" id="fontSample">Aa กันต์ & แนน</div>
-      </div>
-      <div class="field"><label>สีหลัก</label>
-        <div class="swatches" id="accentSwatches"><input type="color" id="accent" value="#A9814B" title="เลือกสีเอง"></div>
-      </div>
-      <div class="field"><label>สีพื้นหลัง</label>
-        <div class="swatches" id="bgSwatches"><input type="color" id="bgColor" value="#F7F3EC" title="เลือกสีเอง"></div>
-      </div>
-      <label class="check-row"><input type="checkbox" id="darkMode"> เปิดด้วยโหมดมืด</label>
-      <label class="check-row"><input type="checkbox" id="allowDownload" checked> อนุญาตให้ลูกค้าดาวน์โหลดภาพ</label>
-    </section>
+    </div>
 
     <!-- 5. สร้างลิงก์ -->
     <section class="card" id="generateCard">
@@ -129,11 +136,22 @@
   </div>
 </div>
 
-<!-- แถบบันทึก (โผล่เฉพาะตอนกด "แก้ไข" จากประวัติ) -->
-<div class="edit-bar hidden" id="editBar">
-  <div class="edit-info"><b id="editName"></b><span>กำลังแก้ไขลิงก์ที่เคยสร้าง</span></div>
-  <button class="btn ghost" id="editCancel" type="button">ยกเลิก</button>
-  <button class="btn accent" id="editSave" type="button">บันทึกการแก้ไข</button>
+<!-- หน้าต่างแก้ไขอัลบั้ม -->
+<div class="edit-modal hidden" id="editModal" role="dialog" aria-modal="true" aria-labelledby="editHeading">
+  <div class="edit-panel">
+    <div class="edit-head">
+      <div>
+        <h2 id="editHeading">แก้ไขอัลบั้ม</h2>
+        <p id="editSub"></p>
+      </div>
+      <button class="edit-x" id="editX" type="button" aria-label="ปิด">✕</button>
+    </div>
+    <div class="edit-body" id="editBody"></div>
+    <div class="edit-foot">
+      <button class="btn ghost" id="editCancel" type="button">ยกเลิก</button>
+      <button class="btn accent" id="editSave" type="button">บันทึกการแก้ไข</button>
+    </div>
+  </div>
 </div>
 
 <script src="config.js"></script>
@@ -147,7 +165,7 @@ const HISTORY_KEY = 'driveGallery:history';
 let verifiedFolderId = '';
 let verifiedFiles = [];
 let selectedCoverId = '';
-const editState = { at: null };          // ถ้ามีค่า = กำลังแก้ไขรายการในประวัติ
+const editState = { at: null };          // ถ้ามีค่า = กำลังแก้ไขรายการนี้ในประวัติ
 const coverLoader = createThumbLoader({ rootMargin: '200px 0px' });
 
 // ---------- เริ่มต้น ----------
@@ -271,8 +289,8 @@ function updatePreview(){
   $('previewEmpty').classList.add('hidden');
   $('previewFrame').src = buildViewUrl(cfg);
 }
-['input', 'change'].forEach(ev => $('form').addEventListener(ev, e => {
-  if(e.target.id === 'folderInput' || e.target.id === 'linkOutput') return;
+['input', 'change'].forEach(ev => $('formMain').addEventListener(ev, e => {
+  if(e.target.id === 'folderInput') return;
   schedulePreview();
 }));
 $('refreshPreview').addEventListener('click', updatePreview);
@@ -332,21 +350,26 @@ $('downloadQr').addEventListener('click', () => {
   a.click();
 });
 
-// ---------- โหมดแก้ไข (จากประวัติ) ----------
+// ---------- หน้าต่างแก้ไขอัลบั้ม ----------
 function beginEdit(item){
   editState.at = item.at;
-  $('editName').textContent = item.title || 'ไม่มีชื่อ';
-  $('editBar').classList.remove('hidden');
-  document.body.classList.add('editing');
+  $('editSub').textContent = item.title || 'ไม่มีชื่อ';
+  $('editBody').appendChild($('formMain'));            // ย้ายฟอร์มเข้าไปในหน้าต่าง
+  $('editModal').classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  $('editBody').scrollTop = 0;
   renderHistory();
 }
 function endEdit(){
   editState.at = null;
-  $('editBar').classList.add('hidden');
-  document.body.classList.remove('editing');
+  $('formHome').appendChild($('formMain'));            // ย้ายฟอร์มกลับที่เดิม
+  $('editModal').classList.add('hidden');
+  document.body.classList.remove('modal-open');
   renderHistory();
 }
 $('editCancel').addEventListener('click', () => { endEdit(); toast('ยกเลิกการแก้ไขแล้ว'); });
+$('editX').addEventListener('click', endEdit);
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && editState.at !== null) endEdit(); });
 
 $('editSave').addEventListener('click', async () => {
   let cfg = readForm();
@@ -370,7 +393,7 @@ $('editSave').addEventListener('click', async () => {
     setStatus('generateStatus', '');
     showResult(url);
     updatePreview();
-    endEdit();
+    endEdit();                                          // ปิดหน้าต่าง
     toast('บันทึกการแก้ไขเรียบร้อย');
     $('generateCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }finally{
@@ -408,8 +431,7 @@ function renderHistory(){
         const c = decodeConfig(new URL(item.url).searchParams.get('c'));
         if(!c) return toast('อ่านข้อมูลลิงก์ไม่ได้');
         fillForm(c);
-        beginEdit(item);                                    // เข้าโหมดแก้ไข + แถบปุ่มบันทึก
-        window.scrollTo({ top: 0, behavior: 'smooth' });    // เด้งขึ้นไปที่ฟอร์มข้อมูล
+        beginEdit(item);                                // เปิดหน้าต่างแก้ไขข้อมูล
         verifyFolder();
       }),
       mk('ลบ', 'danger', () => {
