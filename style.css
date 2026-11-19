@@ -85,6 +85,20 @@ input[type=color]{ width:32px; height:32px; border:1px dashed var(--ink-soft); b
 .history-item .info{ flex:1; min-width:140px; }
 .history-item .name{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .history-item .sub{ font-size:11px; color:var(--ink-soft); }
+.history-item.editing{ background:var(--accent-soft); border-radius:12px; padding-left:10px; padding-right:10px; }
+
+/* ---------- แถบบันทึกตอนแก้ไข (หน้าสร้างลิงก์) ---------- */
+.edit-bar{
+  position:fixed; left:50%; bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%); z-index:70; width:max-content; max-width:calc(100vw - 20px);
+  display:flex; align-items:center; gap:10px; padding:10px 12px 10px 20px;
+  background:var(--card); border-radius:999px;
+  box-shadow:0 20px 50px -18px rgba(30,26,20,.4), 0 0 0 1px var(--line);
+}
+.edit-info{ display:flex; flex-direction:column; min-width:0; font-size:11.5px; color:var(--ink-soft); line-height:1.35; }
+.edit-info b{ font-size:13px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; }
+body.editing .builder{ padding-bottom:120px; }
+@media (max-width:520px){ .edit-info{ display:none; } .edit-bar{ padding:10px; } }
 
 /* ---------- หน้านำเสนอ ---------- */
 .hero{ position:relative; height:min(78vh,720px); min-height:360px; overflow:hidden; color:#fff;
@@ -134,11 +148,21 @@ input[type=color]{ width:32px; height:32px; border:1px dashed var(--ink-soft); b
 .lb-top .counter{ margin-right:auto; opacity:.8; }
 .lb-btn{ background:rgba(255,255,255,.12); color:#fff; border:none; border-radius:999px; padding:7px 12px; font-size:12.5px;
   text-decoration:none; cursor:pointer; }
+.lb-btn.on{ background:var(--accent); }
 .lb-stage{ flex:1; position:relative; display:flex; align-items:center; justify-content:center; min-height:0; padding:0 8px 16px; }
 .lb-stage img{ max-width:100%; max-height:100%; object-fit:contain; user-select:none; }
 .lb-nav{ position:absolute; top:50%; transform:translateY(-50%); width:46px; height:46px; border-radius:50%; border:none;
   background:rgba(255,255,255,.12); color:#fff; font-size:26px; cursor:pointer; z-index:2; }
 .lb-prev{ left:10px; } .lb-next{ right:10px; }
+
+/* ---------- QR ดาวน์โหลดรูปใน lightbox ---------- */
+.lb-qr{ position:absolute; right:16px; bottom:16px; z-index:3; background:#fff; border-radius:14px;
+  padding:10px 10px 8px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+.lb-qr > div{ line-height:0; }
+.lb-qr p{ margin-top:6px; font-size:11px; color:#2B2823; line-height:1.3; }
+@media (max-width:600px){
+  .lb-qr{ right:50%; transform:translateX(50%); bottom:12px; }
+}
 
 /* ---------- แถบเมนูลอยด้านล่าง ---------- */
 .gbar{
