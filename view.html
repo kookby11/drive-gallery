@@ -2,19 +2,20 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>แกลเลอรีภาพ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Playfair+Display:wght@600&family=Prompt:wght@400;600&family=Mali:wght@500;700&family=Noto+Serif+Thai:wght@400;600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 <header class="hero" id="hero">
   <img id="heroA" alt="">
   <img id="heroB" alt="">
   <div class="hero-actions">
-    <button class="icon-btn" id="themeBtn" title="สลับโหมดสว่าง/มืด">◐</button>
+    <button class="icon-btn" id="themeBtn" title="Light / Dark">◐</button>
   </div>
   <div class="hero-text">
     <div class="brand" id="brand"></div>
@@ -27,20 +28,74 @@
 <main class="container">
   <div class="toolbar" id="toolbar">
     <span class="count" id="count"></span>
-    <button class="btn ghost small" id="densityBtn" type="button">⊞ ขนาดภาพ</button>
-    <button class="btn accent small" id="playBtn" type="button">▶ เล่นสไลด์โชว์</button>
+    <button class="btn ghost small" id="densityBtn" type="button" data-i18n="density"></button>
+    <button class="btn accent small" id="playBtn" type="button" data-i18n="play"></button>
   </div>
   <div class="status" id="status"></div>
   <div class="gallery grid" id="gallery"></div>
 </main>
 <footer class="foot" id="foot"></footer>
 
+<!-- แถบเมนูลอยด้านล่าง -->
+<nav class="dock" id="dock">
+  <button class="dock-btn" type="button" data-act="qr">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>
+    <span data-i18n="qr"></span>
+  </button>
+  <button class="dock-btn" type="button" data-act="download" id="dockDownload">
+    <svg viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14"/></svg>
+    <span data-i18n="download"></span>
+  </button>
+  <button class="dock-btn" type="button" data-act="select">
+    <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12l2.5 2.5 5-5"/></svg>
+    <span data-i18n="select"></span>
+  </button>
+  <button class="dock-btn" type="button" data-act="lang">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg>
+    <span data-i18n="language"></span>
+  </button>
+</nav>
+
+<!-- แถบตอนเลือกรูป -->
+<div class="select-bar hidden" id="selectBar">
+  <span class="sel-count" id="selCount"></span>
+  <button class="btn ghost small" id="selAll" type="button" data-i18n="selAll"></button>
+  <button class="btn ghost small" id="selCopy" type="button" data-i18n="copyNames"></button>
+  <button class="btn accent small" id="selDownload" type="button" data-i18n="download"></button>
+  <button class="btn small" id="selDone" type="button" data-i18n="done"></button>
+</div>
+
+<!-- popup QR -->
+<div class="modal" id="qrModal">
+  <div class="sheet">
+    <h3 data-i18n="qrTitle"></h3>
+    <div class="qr" id="viewQr"></div>
+    <div class="sheet-actions">
+      <button class="btn ghost small" id="qrCopy" type="button" data-i18n="copyLink"></button>
+      <button class="btn ghost small" id="qrSave" type="button" data-i18n="saveQr"></button>
+      <button class="btn ghost small hidden" id="qrShare" type="button" data-i18n="share"></button>
+    </div>
+    <button class="btn block" type="button" data-close data-i18n="close"></button>
+  </div>
+</div>
+
+<!-- popup ดาวน์โหลด -->
+<div class="modal" id="dlModal">
+  <div class="sheet">
+    <h3 data-i18n="dlTitle"></h3>
+    <a class="btn accent block" id="dlAll" target="_blank" rel="noopener" data-i18n="dlAll"></a>
+    <p class="hint" data-i18n="dlAllHint"></p>
+    <button class="btn ghost block" id="dlPick" type="button" data-i18n="dlPick"></button>
+    <button class="btn block" type="button" data-close data-i18n="close"></button>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox">
   <div class="lb-top">
     <span class="counter" id="lbCounter"></span>
-    <button class="lb-btn" id="lbPlay" type="button">▶ สไลด์โชว์</button>
-    <a class="lb-btn" id="lbDownload" target="_blank" rel="noopener">⬇ ดาวน์โหลด</a>
-    <button class="lb-btn" id="lbFull" type="button" title="เต็มจอ">⛶</button>
+    <button class="lb-btn" id="lbPlay" type="button"></button>
+    <a class="lb-btn" id="lbDownload" target="_blank" rel="noopener" data-i18n="lbDownload"></a>
+    <button class="lb-btn" id="lbFull" type="button">⛶</button>
     <button class="lb-btn" id="lbClose" type="button">✕</button>
   </div>
   <div class="lb-stage" id="lbStage">
@@ -55,12 +110,56 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const THUMB = 600, FULL = 2000;
-let cfg = null, files = [], dense = false;
+
+// ---------- ภาษา ----------
+const I18N = {
+  th: {
+    photos: 'ภาพ', density: '⊞ ขนาดภาพ', play: '▶ เล่นสไลด์โชว์',
+    qr: 'QR Code', download: 'ดาวน์โหลด', select: 'เลือกรูป', language: 'ภาษา',
+    selected: 'เลือกแล้ว {n} ภาพ', selAll: 'เลือกทั้งหมด', copyNames: 'คัดลอกชื่อไฟล์', done: 'เสร็จ',
+    tapToSelect: 'แตะรูปเพื่อเลือก', pickFirst: 'กรุณาเลือกรูปก่อน',
+    confirmMany: 'ต้องการดาวน์โหลด {n} ภาพใช่ไหม? เบราว์เซอร์อาจถามให้อนุญาตการดาวน์โหลดหลายไฟล์',
+    downloading: 'กำลังดาวน์โหลด {n} ภาพ...', copied: 'คัดลอกแล้ว', copyFail: 'คัดลอกไม่สำเร็จ',
+    qrTitle: 'สแกนเพื่อเปิดอัลบั้ม', copyLink: 'คัดลอกลิงก์', saveQr: 'บันทึก QR', share: 'แชร์', close: 'ปิด',
+    dlTitle: 'ดาวน์โหลดภาพ', dlAll: 'ดาวน์โหลดทั้งหมด (Google Drive)',
+    dlAllHint: 'จะเปิดโฟลเดอร์ใน Google Drive ให้กดปุ่ม "ดาวน์โหลดทั้งหมด" ที่มุมขวาบน ระบบจะรวมเป็นไฟล์ zip',
+    dlPick: 'เลือกเฉพาะบางรูป', lbPlay: '▶ สไลด์โชว์', lbStop: '❚❚ หยุด', lbDownload: '⬇ ดาวน์โหลด',
+    loading: 'กำลังโหลดภาพ...', empty: 'ยังไม่มีภาพในอัลบั้มนี้', gallery: 'แกลเลอรีภาพ',
+    invalidTitle: 'ลิงก์ไม่ถูกต้อง', invalid: 'ลิงก์นี้ไม่สมบูรณ์ กรุณาติดต่อผู้ส่งลิงก์',
+  },
+  en: {
+    photos: 'photos', density: '⊞ Size', play: '▶ Slideshow',
+    qr: 'QR Code', download: 'Download', select: 'Select', language: 'Language',
+    selected: '{n} selected', selAll: 'Select all', copyNames: 'Copy file names', done: 'Done',
+    tapToSelect: 'Tap photos to select', pickFirst: 'Please select photos first',
+    confirmMany: 'Download {n} photos? Your browser may ask to allow multiple downloads.',
+    downloading: 'Downloading {n} photos...', copied: 'Copied', copyFail: 'Copy failed',
+    qrTitle: 'Scan to open album', copyLink: 'Copy link', saveQr: 'Save QR', share: 'Share', close: 'Close',
+    dlTitle: 'Download photos', dlAll: 'Download all (Google Drive)',
+    dlAllHint: 'Opens the folder in Google Drive. Tap "Download all" at the top right to get a zip file.',
+    dlPick: 'Choose specific photos', lbPlay: '▶ Slideshow', lbStop: '❚❚ Pause', lbDownload: '⬇ Download',
+    loading: 'Loading photos...', empty: 'No photos in this album yet', gallery: 'Gallery',
+    invalidTitle: 'Invalid link', invalid: 'This link is incomplete. Please contact the sender.',
+  },
+};
+const LANG_KEY = 'driveGallery:lang';
+let lang = localStorage.getItem(LANG_KEY) || 'th';
+if(!I18N[lang]) lang = 'th';
+function t(key, vars = {}){
+  let s = I18N[lang][key] ?? I18N.th[key] ?? key;
+  Object.entries(vars).forEach(([k, v]) => { s = s.replace('{' + k + '}', v); });
+  return s;
+}
+
+let cfg = null, files = [], dense = false, loaded = false;
 let lbIndex = -1, playTimer = null, heroTimer = null, heroFront = 'heroA';
+let selectMode = false;
+const selected = new Set();
 const loader = createThumbLoader();
 
 // ---------- เริ่มต้น ----------
 cfg = decodeConfig(new URLSearchParams(location.search).get('c') || '');
+applyLang();
 if(!cfg || !cfg.f){
   showInvalid();
 }else{
@@ -69,30 +168,53 @@ if(!cfg || !cfg.f){
   loadPhotos();
 }
 
+function applyLang(){
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  $('lbPlay').textContent = playTimer ? t('lbStop') : t('lbPlay');
+  updateCounts();
+  updateSelectBar();
+  if(cfg && !cfg.t && cfg.f) $('title').textContent = t('gallery');
+}
+
 function showInvalid(){
   $('hero').classList.add('plain');
-  $('title').textContent = 'ลิงก์ไม่ถูกต้อง';
+  $('title').textContent = t('invalidTitle');
   $('toolbar').classList.add('hidden');
-  setStatus('status', 'ลิงก์นี้ไม่สมบูรณ์ กรุณาติดต่อผู้ส่งลิงก์', 'error');
+  $('dock').classList.add('hidden');
+  setStatus('status', t('invalid'), 'error');
 }
 
 function renderHeader(){
   $('brand').textContent = cfg.b;
   $('subtitle').textContent = cfg.s;
-  $('title').textContent = cfg.t || 'แกลเลอรีภาพ';
+  $('title').textContent = cfg.t || t('gallery');
   $('foot').textContent = cfg.b ? '© ' + cfg.b : '';
-  document.title = [cfg.t, cfg.b].filter(Boolean).join(' — ') || 'แกลเลอรีภาพ';
+  document.title = [cfg.t, cfg.b].filter(Boolean).join(' — ') || t('gallery');
   if(cfg.cv === 'none') $('hero').classList.add('plain');
-  if(!cfg.dl) $('lbDownload').classList.add('hidden');
+  if(!cfg.dl){
+    $('lbDownload').classList.add('hidden');
+    $('dockDownload').classList.add('hidden');
+    $('selDownload').classList.add('hidden');
+  }
+  $('dlAll').href = `https://drive.google.com/drive/folders/${cfg.f}`;
+}
+
+function updateCounts(){
+  if(!loaded) return;
+  const text = files.length + ' ' + t('photos');
+  $('meta').textContent = [cfg.d, text].filter(Boolean).join(' · ');
+  $('count').textContent = text;
 }
 
 async function loadPhotos(){
-  setStatus('status', 'กำลังโหลดภาพ...', 'info');
+  setStatus('status', t('loading'), 'info');
   try{
     files = await fetchDriveFiles(cfg.f, cfg.so);
-    setStatus('status', files.length ? '' : 'ยังไม่มีภาพในอัลบั้มนี้', 'info');
-    $('meta').textContent = [cfg.d, files.length + ' ภาพ'].filter(Boolean).join(' · ');
-    $('count').textContent = files.length + ' ภาพ';
+    loaded = true;
+    restoreSelection();
+    setStatus('status', files.length ? '' : t('empty'), 'info');
+    updateCounts();
     $('toolbar').classList.toggle('hidden', !files.length);
     renderGallery();
     renderHero();
@@ -121,7 +243,7 @@ function showHero(file){
   pre.onload = () => {
     next.src = pre.src;
     next.classList.remove('kb');
-    void next.offsetWidth;            // เริ่มเอฟเฟกต์ซูมใหม่
+    void next.offsetWidth;
     next.classList.add('show', 'kb');
     cur.classList.remove('show');
     heroFront = next.id;
@@ -143,13 +265,18 @@ function renderGallery(){
   g.className = 'gallery ' + cfg.ly + (dense ? ' dense' : '');
   files.forEach((f, i) => {
     const cell = document.createElement('div');
-    cell.className = 'cell';
+    cell.className = 'cell' + (selected.has(f.id) ? ' selected' : '');
     if(cfg.ly === 'masonry') cell.style.aspectRatio = ratioOf(f);
     const img = document.createElement('img');
     img.alt = f.name || '';
     img.decoding = 'async';
-    cell.appendChild(img);
-    cell.addEventListener('click', () => openLightbox(i));
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.textContent = String(i + 1).padStart(2, '0');
+    const check = document.createElement('span');
+    check.className = 'check';
+    cell.append(img, num, check);
+    cell.addEventListener('click', () => selectMode ? toggleSelect(f.id, cell) : openLightbox(i));
     g.appendChild(cell);
     loader.watch(img, f, THUMB);
   });
@@ -157,16 +284,131 @@ function renderGallery(){
 $('densityBtn').addEventListener('click', () => { dense = !dense; $('gallery').classList.toggle('dense', dense); });
 $('themeBtn').addEventListener('click', () => document.body.classList.toggle('dark'));
 
+// ---------- เลือกรูป ----------
+function selKey(){ return 'driveGallery:sel:' + cfg.f; }
+function saveSelection(){ try{ localStorage.setItem(selKey(), JSON.stringify([...selected])); }catch(e){} }
+function restoreSelection(){
+  try{
+    const ids = new Set(files.map(f => f.id));
+    (JSON.parse(localStorage.getItem(selKey())) || []).forEach(id => { if(ids.has(id)) selected.add(id); });
+  }catch(e){}
+}
+function syncSelectedCells(){
+  document.querySelectorAll('#gallery .cell').forEach((c, i) => c.classList.toggle('selected', selected.has(files[i].id)));
+}
+function toggleSelect(id, cell){
+  selected.has(id) ? selected.delete(id) : selected.add(id);
+  cell.classList.toggle('selected', selected.has(id));
+  saveSelection();
+  updateSelectBar();
+}
+function updateSelectBar(){ $('selCount').textContent = t('selected', { n: selected.size }); }
+function enterSelect(){
+  selectMode = true;
+  document.body.classList.add('selecting');
+  $('selectBar').classList.remove('hidden');
+  updateSelectBar();
+  toast(t('tapToSelect'));
+}
+function exitSelect(){
+  selectMode = false;
+  document.body.classList.remove('selecting');
+  $('selectBar').classList.add('hidden');
+}
+function selectedFiles(){ return files.filter(f => selected.has(f.id)); }
+
+$('selAll').addEventListener('click', () => {
+  if(selected.size === files.length) selected.clear();
+  else files.forEach(f => selected.add(f.id));
+  syncSelectedCells(); saveSelection(); updateSelectBar();
+});
+$('selCopy').addEventListener('click', async () => {
+  const list = selectedFiles();
+  if(!list.length) return toast(t('pickFirst'));
+  const text = list.map(f => f.name).join('\n');
+  toast(await copyText(text) ? t('copied') : t('copyFail'));
+});
+$('selDownload').addEventListener('click', () => {
+  const list = selectedFiles();
+  if(!list.length) return toast(t('pickFirst'));
+  if(list.length > 1 && !confirm(t('confirmMany', { n: list.length }))) return;
+  downloadFiles(list);
+});
+$('selDone').addEventListener('click', exitSelect);
+
+async function downloadFiles(list){
+  toast(t('downloading', { n: list.length }));
+  for(const f of list){
+    const a = document.createElement('a');
+    a.href = `https://drive.google.com/uc?export=download&id=${f.id}`;
+    a.download = f.name || '';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    await new Promise(r => setTimeout(r, 900));
+  }
+}
+
+// ---------- แถบเมนูด้านล่าง ----------
+$('dock').addEventListener('click', e => {
+  const btn = e.target.closest('.dock-btn');
+  if(!btn) return;
+  const act = btn.dataset.act;
+  if(act === 'qr') openQr();
+  if(act === 'download') openModal('dlModal');
+  if(act === 'select') enterSelect();
+  if(act === 'lang'){
+    lang = lang === 'th' ? 'en' : 'th';
+    localStorage.setItem(LANG_KEY, lang);
+    applyLang();
+  }
+});
+$('dlPick').addEventListener('click', () => { closeModals(); enterSelect(); });
+
+// ---------- popup ----------
+function openModal(id){ $(id).classList.add('open'); }
+function closeModals(){ document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open')); }
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => {
+  if(e.target === m || e.target.hasAttribute('data-close')) closeModals();
+}));
+
+let qrMade = false;
+function openQr(){
+  if(!qrMade){
+    try{
+      new QRCode($('viewQr'), { text: location.href, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.L });
+      qrMade = true;
+    }catch(e){ $('viewQr').textContent = 'QR error'; }
+  }
+  if(navigator.share) $('qrShare').classList.remove('hidden');
+  openModal('qrModal');
+}
+$('qrCopy').addEventListener('click', async () => toast(await copyText(location.href) ? t('copied') : t('copyFail')));
+$('qrSave').addEventListener('click', () => {
+  const canvas = $('viewQr').querySelector('canvas');
+  if(!canvas) return;
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = (cfg.t || 'gallery') + '-qr.png';
+  a.click();
+});
+$('qrShare').addEventListener('click', () => {
+  navigator.share({ title: document.title, url: location.href }).catch(() => {});
+});
+
 // ---------- Lightbox ----------
 function openLightbox(i){
   lbIndex = i;
   showLb();
   $('lightbox').classList.add('open');
+  document.body.classList.add('lb-open');
   document.body.style.overflow = 'hidden';
 }
 function closeLightbox(){
   stopPlay();
   $('lightbox').classList.remove('open');
+  document.body.classList.remove('lb-open');
   document.body.style.overflow = '';
   lbIndex = -1;
   if(document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -176,7 +418,7 @@ function showLb(){
   if(!n) return;
   lbIndex = ((lbIndex % n) + n) % n;
   const idx = lbIndex, f = files[idx];
-  setImg($('lbImg'), f, THUMB);              // แสดงรูปเล็กที่โหลดไว้แล้วทันที
+  setImg($('lbImg'), f, THUMB);
   const hi = new Image();
   let triedAlt = false;
   hi.onload = () => { if(lbIndex === idx) $('lbImg').src = hi.src; };
@@ -184,18 +426,17 @@ function showLb(){
   hi.src = thumbUrl(f, FULL);
   $('lbCounter').textContent = `${idx + 1} / ${n}`;
   if(cfg.dl) $('lbDownload').href = `https://drive.google.com/uc?export=download&id=${f.id}`;
-  [1, -1].forEach(d => { new Image().src = thumbUrl(files[(idx + d + n) % n], FULL); });   // โหลดรูปถัดไปรอไว้
+  [1, -1].forEach(d => { new Image().src = thumbUrl(files[(idx + d + n) % n], FULL); });
 }
 function go(step){ stopPlay(); lbIndex += step; showLb(); }
-
 function startPlay(){
   stopPlay();
-  $('lbPlay').textContent = '❚❚ หยุด';
   playTimer = setInterval(() => { lbIndex++; showLb(); }, 4000);
+  $('lbPlay').textContent = t('lbStop');
 }
 function stopPlay(){
   clearInterval(playTimer); playTimer = null;
-  $('lbPlay').textContent = '▶ สไลด์โชว์';
+  $('lbPlay').textContent = t('lbPlay');
 }
 function goFullscreen(){
   const el = $('lightbox');
@@ -208,9 +449,10 @@ $('lbNext').addEventListener('click', e => { e.stopPropagation(); go(1); });
 $('lbPlay').addEventListener('click', () => playTimer ? stopPlay() : startPlay());
 $('lbFull').addEventListener('click', () => document.fullscreenElement ? document.exitFullscreen() : goFullscreen());
 $('lbStage').addEventListener('click', e => { if(e.target.id === 'lbStage') closeLightbox(); });
-$('playBtn').addEventListener('click', () => { openLightbox(0); goFullscreen(); startPlay(); });
+$('playBtn').addEventListener('click', () => { if(files.length){ openLightbox(0); goFullscreen(); startPlay(); } });
 
 document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') closeModals();
   if(!$('lightbox').classList.contains('open')) return;
   if(e.key === 'Escape') closeLightbox();
   if(e.key === 'ArrowLeft') go(-1);
