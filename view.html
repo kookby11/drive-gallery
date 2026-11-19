@@ -73,6 +73,17 @@
   </div>
 </div>
 
+<!-- กล่องบันทึกรูปลงอัลบั้ม -->
+<div class="qr-modal dl-modal" id="dlModal">
+  <div class="card">
+    <button class="dl-x" id="dlClose" type="button" aria-label="Close">✕</button>
+    <h2 id="dlTitle"></h2>
+    <div class="dl-list" id="dlList"></div>
+    <p class="hint" id="dlNote"></p>
+    <button class="btn accent block" id="dlSave" type="button" disabled></button>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox">
   <div class="lb-top">
     <span class="counter" id="lbCounter"></span>
@@ -253,7 +264,7 @@ function renderGallery(){
 $('densityBtn').addEventListener('click', () => { dense = !dense; $('gallery').classList.toggle('dense', dense); });
 $('themeBtn').addEventListener('click', () => document.body.classList.toggle('dark'));
 
-// ---------- โหมดเลือกรูป + ดาวน์โหลด ----------
+// ---------- โหมดเลือกรูป ----------
 function updateSelectUI(){
   const n = picked.size;
   const b = $('pickCount');
@@ -288,13 +299,143 @@ $('selAllBtn').addEventListener('click', () => {
   updateSelectUI();
 });
 
-$('btnDownload').addEventListener('click', async () => {
-  const list = files.filter(f => picked.has(f.id));
-  if(!list.length){
-    if(!selectMode) setSelectMode(true);
-    gbarToast(t('pickFirst'));
+// ---------- บันทึกรูปลงอัลบั้ม (มือถือ) / ดาวน์โหลด (คอม) ----------
+const SHARE_BATCH = 20;
+const DLT = {
+  th: {
+    prep:'กำลังเตรียมรูปภาพ', prepN:(i,n)=>`กำลังเตรียมรูปภาพ (ชุด ${i}/${n})`,
+    ready:'พร้อมบันทึกแล้ว', readyN:(i,n)=>`พร้อมบันทึกแล้ว (ชุด ${i}/${n})`, done:'บันทึกครบแล้ว',
+    note:'กด "บันทึกลงอัลบั้ม" แล้วเลือก "บันทึกรูปภาพ" (iPhone) หรือบันทึกลงแกลเลอรี (Android)',
+    save:'บันทึกลงอัลบั้ม', saveN:(i,n)=>`บันทึกลงอัลบั้ม (ชุด ${i}/${n})`,
+    photoN:(i)=>`รูปที่ ${i}`, fail:'โหลดรูปไม่สำเร็จ ลองใหม่อีกครั้ง'
+  },
+  en: {
+    prep:'Preparing photos', prepN:(i,n)=>`Preparing photos (batch ${i}/${n})`,
+    ready:'Ready to save', readyN:(i,n)=>`Ready to save (batch ${i}/${n})`, done:'All saved',
+    note:'Tap "Save to album", then choose "Save Image" (iPhone) or save to Gallery (Android)',
+    save:'Save to album', saveN:(i,n)=>`Save to album (batch ${i}/${n})`,
+    photoN:(i)=>`Photo ${i}`, fail:'Could not load the photos. Please try again.'
+  }
+};
+const dt = (k, ...a) => { const v = DLT[lang][k]; return typeof v === 'function' ? v(...a) : v; };
+
+let dlBatches = [], dlBatchIdx = 0, dlSession = 0, dlReady = [];
+
+function isMobileDevice(){
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);   // iPadOS
+}
+function canShareFiles(){
+  if(!isMobileDevice()) return false;
+  try{
+    return !!(navigator.share && navigator.canShare &&
+      navigator.canShare({ files: [new File(['x'], 'x.jpg', { type: 'image/jpeg' })] }));
+  }catch(e){ return false; }
+}
+function chunk(arr, n){ const out = []; for(let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; }
+
+async function toJpegBlob(blob){
+  const bmp = await createImageBitmap(blob);
+  const c = document.createElement('canvas');
+  c.width = bmp.width; c.height = bmp.height;
+  c.getContext('2d').drawImage(bmp, 0, 0);
+  return new Promise(res => c.toBlob(b => res(b), 'image/jpeg', 0.92));
+}
+async function fetchPhotoFile(f){
+  const urls = [thumbUrl(f, 3000), driveThumbUrl(f.id, 3000, 1)];
+  for(const u of urls){
+    try{
+      const r = await fetch(u);
+      if(!r.ok) continue;
+      let b = await r.blob();
+      if(!b.type.startsWith('image/')) continue;
+      if(b.type !== 'image/jpeg' && b.type !== 'image/png'){
+        const j = await toJpegBlob(b).catch(() => null);
+        if(j) b = j;
+      }
+      const ext = b.type === 'image/png' ? 'png' : 'jpg';
+      const base = (f.name || f.id).replace(/\.[^.]+$/, '');
+      return new File([b], `${base}.${ext}`, { type: b.type });
+    }catch(e){}
+  }
+  return null;
+}
+
+function savePhotos(list){
+  if(!canShareFiles()) return legacyDownload(list);       // คอมพิวเตอร์ / เบราว์เซอร์ที่ไม่รองรับ
+  if(document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  dlBatches = chunk(list, SHARE_BATCH);
+  dlBatchIdx = 0;
+  $('dlNote').textContent = dt('note');
+  $('dlModal').classList.add('open');
+  prepareBatch();
+}
+
+async function prepareBatch(){
+  const session = ++dlSession;
+  const total = dlBatches.length, k = dlBatchIdx + 1;
+  const batch = dlBatches[dlBatchIdx];
+  const btn = $('dlSave'), listEl = $('dlList');
+  dlReady = [];
+  btn.disabled = true;
+  btn.textContent = total > 1 ? dt('saveN', k, total) : dt('save');
+  $('dlTitle').textContent = total > 1 ? dt('prepN', k, total) : dt('prep');
+  listEl.innerHTML = '';
+
+  const items = batch.map((f, i) => {
+    const row = document.createElement('div'); row.className = 'dl-row';
+    const img = document.createElement('img'); img.alt = ''; img.src = thumbUrl(f, 120);
+    const name = document.createElement('span'); name.className = 'dl-name';
+    name.textContent = dt('photoN', dlBatchIdx * SHARE_BATCH + i + 1);
+    const st = document.createElement('span'); st.className = 'dl-st'; st.textContent = '…';
+    row.append(img, name, st);
+    listEl.appendChild(row);
+    return { f, st, file: null };
+  });
+
+  let next = 0;
+  const worker = async () => {
+    while(next < items.length){
+      const it = items[next++];
+      const file = await fetchPhotoFile(it.f);
+      if(session !== dlSession) return;
+      if(file){ it.file = file; it.st.textContent = '✓'; it.st.classList.add('ok'); }
+      else { it.st.textContent = '!'; it.st.classList.add('err'); }
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  if(session !== dlSession) return;
+
+  dlReady = items.filter(it => it.file).map(it => it.file);
+  $('dlTitle').textContent = total > 1 ? dt('readyN', k, total) : dt('ready');
+  if(!dlReady.length){ gbarToast(dt('fail')); return; }
+  btn.disabled = false;
+}
+
+$('dlSave').addEventListener('click', async () => {
+  if(!dlReady.length) return;
+  try{
+    await navigator.share({ files: dlReady });     // ต้องเรียกตรงจากการแตะปุ่มนี้
+  }catch(e){
+    if(e && e.name === 'AbortError') return;       // ผู้ใช้ปิดหน้าต่างแชร์เอง
+    gbarToast(dt('fail'));
     return;
   }
+  dlBatchIdx++;
+  if(dlBatchIdx < dlBatches.length){
+    prepareBatch();
+  }else{
+    $('dlTitle').textContent = dt('done');
+    $('dlSave').disabled = true;
+    setTimeout(() => { closeDl(); setSelectMode(false); }, 1200);
+  }
+});
+function closeDl(){ dlSession++; $('dlModal').classList.remove('open'); }
+$('dlClose').addEventListener('click', closeDl);
+$('dlModal').addEventListener('click', e => { if(e.target.id === 'dlModal') closeDl(); });
+
+// วิธีเดิม สำหรับคอมพิวเตอร์: โหลดทีละไฟล์
+async function legacyDownload(list){
   if(list.length > 1 && !confirm(t('confirmDl', list.length))) return;
   gbarToast(t('dlStart', list.length));
   for(const f of list){
@@ -305,6 +446,23 @@ $('btnDownload').addEventListener('click', async () => {
     setTimeout(() => fr.remove(), 60000);
     await new Promise(r => setTimeout(r, 900));
   }
+}
+
+$('btnDownload').addEventListener('click', () => {
+  const list = files.filter(f => picked.has(f.id));
+  if(!list.length){
+    if(!selectMode) setSelectMode(true);
+    gbarToast(t('pickFirst'));
+    return;
+  }
+  savePhotos(list);
+});
+
+// ปุ่มดาวน์โหลดใน lightbox: บนมือถือให้บันทึกรูปที่กำลังดูลงอัลบั้ม
+$('lbDownload').addEventListener('click', e => {
+  if(!canShareFiles() || lbIndex < 0) return;
+  e.preventDefault();
+  savePhotos([files[lbIndex]]);
 });
 
 // ---------- QR Code ----------
@@ -365,44 +523,3 @@ function showLb(){
 function go(step){ stopPlay(); lbIndex += step; showLb(); }
 
 function startPlay(){
-  stopPlay();
-  $('lbPlay').textContent = t('lbStop');
-  playTimer = setInterval(() => { lbIndex++; showLb(); }, 4000);
-}
-function stopPlay(){
-  clearInterval(playTimer); playTimer = null;
-  $('lbPlay').textContent = t('lbSlide');
-}
-function goFullscreen(){
-  const el = $('lightbox');
-  if(el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen().catch(() => {});
-}
-
-$('lbClose').addEventListener('click', closeLightbox);
-$('lbPrev').addEventListener('click', e => { e.stopPropagation(); go(-1); });
-$('lbNext').addEventListener('click', e => { e.stopPropagation(); go(1); });
-$('lbPlay').addEventListener('click', () => playTimer ? stopPlay() : startPlay());
-$('lbFull').addEventListener('click', () => document.fullscreenElement ? document.exitFullscreen() : goFullscreen());
-$('lbStage').addEventListener('click', e => { if(e.target.id === 'lbStage') closeLightbox(); });
-$('playBtn').addEventListener('click', () => { openLightbox(0); goFullscreen(); startPlay(); });
-
-document.addEventListener('keydown', e => {
-  if(e.key === 'Escape' && $('qrModal').classList.contains('open')){ closeQR(); return; }
-  if(!$('lightbox').classList.contains('open')) return;
-  if(e.key === 'Escape') closeLightbox();
-  if(e.key === 'ArrowLeft') go(-1);
-  if(e.key === 'ArrowRight') go(1);
-  if(e.key === ' '){ e.preventDefault(); playTimer ? stopPlay() : startPlay(); }
-});
-
-let touchX = null;
-$('lbStage').addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
-$('lbStage').addEventListener('touchend', e => {
-  if(touchX === null) return;
-  const dx = e.changedTouches[0].clientX - touchX;
-  touchX = null;
-  if(Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
-});
-</script>
-</body>
-</html>
