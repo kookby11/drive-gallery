@@ -45,7 +45,7 @@
   <div class="status error full" id="keyWarning"></div>
 
   <div class="form-col" id="form">
-    <!-- ฟอร์มขั้นตอน 1-4 (จะถูกย้ายเข้าหน้าต่างแก้ไขตอนกด "แก้ไข" แล้วย้ายกลับตอนปิด) -->
+    <!-- ฟอร์มขั้นตอน 1-5 (จะถูกย้ายเข้าหน้าต่างแก้ไขตอนกด "แก้ไข" แล้วย้ายกลับตอนปิด) -->
     <div id="formHome">
       <div class="form-stack" id="formMain">
 
@@ -111,12 +111,30 @@
           <label class="check-row"><input type="checkbox" id="allowDownload" checked> อนุญาตให้ลูกค้าดาวน์โหลดภาพ</label>
         </section>
 
+        <!-- 5. ช่างภาพ / ช่องทางติดต่อ -->
+        <section class="card">
+          <h2><span class="step">5</span> ช่างภาพ / ช่องทางติดต่อ</h2>
+          <p class="hint" style="margin-bottom:12px">ลูกค้าจะเห็นปุ่มกล้อง "ช่างภาพ" ที่แถบด้านล่างของแกลเลอรี กดแล้วเลือกช่องทางที่กรอกไว้ ช่องที่เว้นว่างจะไม่แสดง กรอกเป็นลิงก์เต็มหรือแค่ชื่อผู้ใช้ก็ได้</p>
+          <div class="field"><label>ชื่อช่างภาพ / สตูดิโอ (เว้นว่างจะใช้ชื่อแบรนด์)</label>
+            <input type="text" id="pgName" placeholder="เช่น 25Story Photography"></div>
+          <div class="field"><label>Facebook (ลิงก์เพจ หรือชื่อเพจ)</label>
+            <input type="text" id="pgFb" placeholder="เช่น https://facebook.com/25story"></div>
+          <div class="field"><label>LINE (LINE ID หรือลิงก์)</label>
+            <input type="text" id="pgLine" placeholder="เช่น @25story"></div>
+          <div class="field"><label>เบอร์โทร</label>
+            <input type="text" id="pgTel" inputmode="tel" placeholder="เช่น 081-234-5678"></div>
+          <div class="field"><label>Instagram (ชื่อผู้ใช้ หรือลิงก์)</label>
+            <input type="text" id="pgIg" placeholder="เช่น @25story"></div>
+          <div class="field"><label>TikTok (ชื่อผู้ใช้ หรือลิงก์)</label>
+            <input type="text" id="pgTt" placeholder="เช่น @25story"></div>
+        </section>
+
       </div>
     </div>
 
-    <!-- 5. สร้างลิงก์ -->
+    <!-- 6. สร้างลิงก์ -->
     <section class="card" id="generateCard">
-      <h2><span class="step">5</span> สร้างลิงก์</h2>
+      <h2><span class="step">6</span> สร้างลิงก์</h2>
       <button class="btn accent block" id="generateBtn" type="button">สร้างลิงก์นำเสนอ</button>
       <div class="status" id="generateStatus"></div>
       <div class="result hidden" id="result">
@@ -134,7 +152,7 @@
       </div>
     </section>
 
-    <!-- 6. ประวัติ -->
+    <!-- ประวัติ -->
     <section class="card">
       <div class="hist-head">
         <h2>ลิงก์ที่เคยสร้าง</h2>
@@ -201,12 +219,72 @@ const ACCENTS = ['#A9814B', '#33473B', '#1B2A4A', '#9A5F5A', '#3A3733'];
 const BGS = ['#F7F3EC', '#F5E9E3', '#E9F1EA', '#EFEBE6', '#FFFFFF'];
 const OLD_HISTORY_KEY = 'driveGallery:history';
 const OLD_IMPORTED_KEY = 'driveGallery:imported';
+const CONTACT_KEY = 'driveGallery:contacts:';
 
 let verifiedFolderId = '';
 let verifiedFiles = [];
 let selectedCoverId = '';
 const editState = { id: null };          // ถ้ามีค่า = กำลังแก้ไขอัลบั้มนี้ (id ของเอกสารใน Firestore)
 const coverLoader = createThumbLoader({ rootMargin: '200px 0px' });
+
+// ---------- ช่างภาพ / ช่องทางติดต่อ ----------
+// เก็บไว้ในลิงก์เป็นพารามิเตอร์ p (แยกจากค่าตั้งค่าหลัก c)
+function rawContacts(){
+  return {
+    n: $('pgName').value.trim(), fb: $('pgFb').value.trim(), ln: $('pgLine').value.trim(),
+    tel: $('pgTel').value.trim(), ig: $('pgIg').value.trim(), tt: $('pgTt').value.trim()
+  };
+}
+function readContacts(){
+  const c = rawContacts();
+  return (c.fb || c.ln || c.tel || c.ig || c.tt) ? c : null;   // ต้องมีอย่างน้อย 1 ช่องทางจึงจะแสดงปุ่มช่างภาพ
+}
+function fillContacts(c){
+  c = c || {};
+  $('pgName').value = c.n || '';
+  $('pgFb').value = c.fb || '';
+  $('pgLine').value = c.ln || '';
+  $('pgTel').value = c.tel || '';
+  $('pgIg').value = c.ig || '';
+  $('pgTt').value = c.tt || '';
+}
+function encodeContacts(c){
+  if(!c) return '';
+  const bytes = new TextEncoder().encode(JSON.stringify(c));
+  let bin = '';
+  bytes.forEach(b => { bin += String.fromCharCode(b); });
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function decodeContactsParam(p){
+  try{
+    if(!p) return null;
+    let s = p.replace(/-/g, '+').replace(/_/g, '/');
+    while(s.length % 4) s += '=';
+    const bytes = Uint8Array.from(atob(s), ch => ch.charCodeAt(0));
+    const obj = JSON.parse(new TextDecoder().decode(bytes));
+    return (obj && typeof obj === 'object') ? obj : null;
+  }catch(e){ return null; }
+}
+function contactsFromUrl(url){
+  try{ return decodeContactsParam(new URL(url).searchParams.get('p')); }catch(e){ return null; }
+}
+function buildFullUrl(cfg){
+  let u = buildViewUrl(cfg);
+  const p = encodeContacts(readContacts());
+  if(p) u += (u.indexOf('?') >= 0 ? '&' : '?') + 'p=' + p;
+  return u;
+}
+function saveContactsLocal(){
+  if(!me) return;
+  try{ localStorage.setItem(CONTACT_KEY + me.uid, JSON.stringify(rawContacts())); }catch(e){}
+}
+function loadContactsLocal(){
+  if(!me) return;
+  try{
+    const c = JSON.parse(localStorage.getItem(CONTACT_KEY + me.uid));
+    if(c) fillContacts(c);
+  }catch(e){}
+}
 
 // ---------- Firebase: ล็อกอิน + ฐานข้อมูล ----------
 let auth = null, db = null, authReady = false;
@@ -276,6 +354,7 @@ function onSignedIn(){
   $('ownerFilterWrap').classList.toggle('hidden', me.role !== 'admin');
   $('loginPass').value = '';
   setStatus('loginStatus', '');
+  loadContactsLocal();                       // เติมช่องทางติดต่อที่เคยใช้ล่าสุด
   subscribeAlbums();
   checkOldHistory();
 }
@@ -284,6 +363,7 @@ function onSignedOut(){
   albums = [];
   if(unsubAlbums){ unsubAlbums(); unsubAlbums = null; }
   if(editState.id) endEdit();
+  fillContacts(null);                        // ไม่ให้คนถัดไปเห็นข้อมูลของคนก่อนหน้า
   document.body.classList.add('locked');
   $('userBox').classList.add('hidden');
   $('importBox').classList.add('hidden');
@@ -451,7 +531,7 @@ function updatePreview(){
   const cfg = readForm();
   if(!cfg.f || cfg.f !== verifiedFolderId) return;
   $('previewEmpty').classList.add('hidden');
-  $('previewFrame').src = buildViewUrl(cfg);
+  $('previewFrame').src = buildFullUrl(cfg);
 }
 ['input', 'change'].forEach(ev => $('formMain').addEventListener(ev, e => {
   if(e.target.id === 'folderInput') return;
@@ -484,9 +564,10 @@ $('generateBtn').addEventListener('click', async () => {
   }
   if(cfg.cv === 'pick' && !cfg.ci){ setStatus('generateStatus', 'กรุณาเลือกภาพหน้าปกในขั้นตอนที่ 3', 'error'); return; }
 
-  const url = buildViewUrl(cfg);
+  const url = buildFullUrl(cfg);
   setStatus('generateStatus', '');
   showResult(url);
+  saveContactsLocal();
   await saveHistory(cfg, url);
   updatePreview();
   toast('สร้างลิงก์เรียบร้อย');
@@ -549,7 +630,7 @@ $('editSave').addEventListener('click', async () => {
     }
     if(cfg.cv === 'pick' && !cfg.ci){ toast('กรุณาเลือกภาพหน้าปกในขั้นตอนที่ 3'); return; }
 
-    const url = buildViewUrl(cfg);
+    const url = buildFullUrl(cfg);
     try{
       await db.collection('albums').doc(editState.id).update({
         title: cfg.t || 'ไม่มีชื่อ', date: cfg.d, url, count: verifiedFiles.length, updatedAt: nowTs()
@@ -558,6 +639,7 @@ $('editSave').addEventListener('click', async () => {
       toast('บันทึกไม่สำเร็จ (' + (err.code || '') + ')');
       return;
     }
+    saveContactsLocal();
     setStatus('generateStatus', '');
     showResult(url);
     updatePreview();
@@ -611,78 +693,3 @@ function renderHistory(){
   items.forEach(item => {
     const row = document.createElement('div');
     row.className = 'history-item' + (editState.id && item.id === editState.id ? ' editing' : '');
-    const info = document.createElement('div');
-    info.className = 'info';
-    const name = document.createElement('div'); name.className = 'name'; name.textContent = item.title;
-    const sub = document.createElement('div'); sub.className = 'sub';
-    const owner = (me && item.ownerUid !== me.uid) ? 'โดย ' + (item.ownerName || item.ownerEmail) : '';
-    sub.textContent = [owner, item.date, item.count ? item.count + ' ภาพ' : '', new Date(item.upd).toLocaleString('th-TH')].filter(Boolean).join(' · ');
-    info.append(name, sub);
-    const mk = (label, cls, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small ' + cls; b.textContent = label; b.addEventListener('click', fn); return b; };
-    row.append(info,
-      mk('คัดลอก', 'ghost', async () => toast(await copyText(item.url) ? 'คัดลอกลิงก์แล้ว' : 'คัดลอกไม่สำเร็จ')),
-      mk('เปิด', 'ghost', () => window.open(item.url, '_blank', 'noopener')),
-      mk('แก้ไข', 'ghost', () => {
-        const c = decodeConfig(new URL(item.url).searchParams.get('c'));
-        if(!c) return toast('อ่านข้อมูลลิงก์ไม่ได้');
-        fillForm(c);
-        beginEdit(item);                                // เปิดหน้าต่างแก้ไขข้อมูล
-        verifyFolder();
-      }),
-      mk('ลบ', 'danger', async () => {
-        if(!confirm('ลบ "' + item.title + '" ออกจากประวัติ?')) return;
-        if(item.id === editState.id) endEdit();
-        try{ await db.collection('albums').doc(item.id).delete(); }
-        catch(err){ toast('ลบไม่สำเร็จ (' + (err.code || '') + ')'); }
-      }),
-    );
-    list.appendChild(row);
-  });
-}
-
-// ---------- นำเข้าประวัติเดิมที่เคยเก็บในเบราว์เซอร์เครื่องนี้ ----------
-function readOldHistory(){
-  try{
-    if(localStorage.getItem(OLD_IMPORTED_KEY)) return [];
-    const h = JSON.parse(localStorage.getItem(OLD_HISTORY_KEY));
-    return Array.isArray(h) ? h.filter(x => x && x.url) : [];
-  }catch(e){ return []; }
-}
-function checkOldHistory(){
-  const old = readOldHistory();
-  $('importBox').classList.toggle('hidden', !old.length);
-  if(old.length) $('importText').textContent = `พบประวัติเดิมในเครื่องนี้ ${old.length} รายการ (ผู้ที่ล็อกอินอยู่จะเป็นเจ้าของ)`;
-}
-$('importBtn').addEventListener('click', async () => {
-  const old = readOldHistory();
-  if(!old.length || !me) return;
-  $('importBtn').disabled = true;
-  try{
-    const TS = firebase.firestore.Timestamp;
-    const batch = db.batch();
-    old.forEach(it => {
-      const ref = db.collection('albums').doc();
-      batch.set(ref, {
-        title: it.title || 'ไม่มีชื่อ', date: it.date || '', url: it.url, count: it.count || 0,
-        ownerUid: me.uid, ownerEmail: me.email, ownerName: me.name,
-        createdAt: TS.fromMillis(it.at || Date.now()), updatedAt: TS.fromMillis(it.upd || it.at || Date.now())
-      });
-    });
-    await batch.commit();
-    try{ localStorage.setItem(OLD_IMPORTED_KEY, '1'); }catch(e){}
-    $('importBox').classList.add('hidden');
-    toast('นำเข้า ' + old.length + ' รายการแล้ว');
-  }catch(err){
-    toast('นำเข้าไม่สำเร็จ (' + (err.code || '') + ')');
-  }finally{
-    $('importBtn').disabled = false;
-  }
-});
-
-// ---------- เริ่มระบบ ----------
-renderHistory();
-if(initFirebase()) startAuth();
-})();
-</script>
-</body>
-</html>
