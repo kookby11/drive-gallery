@@ -693,3 +693,79 @@ function renderHistory(){
   items.forEach(item => {
     const row = document.createElement('div');
     row.className = 'history-item' + (editState.id && item.id === editState.id ? ' editing' : '');
+    const info = document.createElement('div');
+    info.className = 'info';
+    const name = document.createElement('div'); name.className = 'name'; name.textContent = item.title;
+    const sub = document.createElement('div'); sub.className = 'sub';
+    const owner = (me && item.ownerUid !== me.uid) ? 'โดย ' + (item.ownerName || item.ownerEmail) : '';
+    sub.textContent = [owner, item.date, item.count ? item.count + ' ภาพ' : '', new Date(item.upd).toLocaleString('th-TH')].filter(Boolean).join(' · ');
+    info.append(name, sub);
+    const mk = (label, cls, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small ' + cls; b.textContent = label; b.addEventListener('click', fn); return b; };
+    row.append(info,
+      mk('คัดลอก', 'ghost', async () => toast(await copyText(item.url) ? 'คัดลอกลิงก์แล้ว' : 'คัดลอกไม่สำเร็จ')),
+      mk('เปิด', 'ghost', () => window.open(item.url, '_blank', 'noopener')),
+      mk('แก้ไข', 'ghost', () => {
+        const c = decodeConfig(new URL(item.url).searchParams.get('c'));
+        if(!c) return toast('อ่านข้อมูลลิงก์ไม่ได้');
+        fillForm(c);
+        fillContacts(contactsFromUrl(item.url));         // เติมช่องทางติดต่อของอัลบั้มนี้
+        beginEdit(item);                                 // เปิดหน้าต่างแก้ไขข้อมูล
+        verifyFolder();
+      }),
+      mk('ลบ', 'danger', async () => {
+        if(!confirm('ลบ "' + item.title + '" ออกจากประวัติ?')) return;
+        if(item.id === editState.id) endEdit();
+        try{ await db.collection('albums').doc(item.id).delete(); }
+        catch(err){ toast('ลบไม่สำเร็จ (' + (err.code || '') + ')'); }
+      }),
+    );
+    list.appendChild(row);
+  });
+}
+
+// ---------- นำเข้าประวัติเดิมที่เคยเก็บในเบราว์เซอร์เครื่องนี้ ----------
+function readOldHistory(){
+  try{
+    if(localStorage.getItem(OLD_IMPORTED_KEY)) return [];
+    const h = JSON.parse(localStorage.getItem(OLD_HISTORY_KEY));
+    return Array.isArray(h) ? h.filter(x => x && x.url) : [];
+  }catch(e){ return []; }
+}
+function checkOldHistory(){
+  const old = readOldHistory();
+  $('importBox').classList.toggle('hidden', !old.length);
+  if(old.length) $('importText').textContent = `พบประวัติเดิมในเครื่องนี้ ${old.length} รายการ (ผู้ที่ล็อกอินอยู่จะเป็นเจ้าของ)`;
+}
+$('importBtn').addEventListener('click', async () => {
+  const old = readOldHistory();
+  if(!old.length || !me) return;
+  $('importBtn').disabled = true;
+  try{
+    const TS = firebase.firestore.Timestamp;
+    const batch = db.batch();
+    old.forEach(it => {
+      const ref = db.collection('albums').doc();
+      batch.set(ref, {
+        title: it.title || 'ไม่มีชื่อ', date: it.date || '', url: it.url, count: it.count || 0,
+        ownerUid: me.uid, ownerEmail: me.email, ownerName: me.name,
+        createdAt: TS.fromMillis(it.at || Date.now()), updatedAt: TS.fromMillis(it.upd || it.at || Date.now())
+      });
+    });
+    await batch.commit();
+    try{ localStorage.setItem(OLD_IMPORTED_KEY, '1'); }catch(e){}
+    $('importBox').classList.add('hidden');
+    toast('นำเข้า ' + old.length + ' รายการแล้ว');
+  }catch(err){
+    toast('นำเข้าไม่สำเร็จ (' + (err.code || '') + ')');
+  }finally{
+    $('importBtn').disabled = false;
+  }
+});
+
+// ---------- เริ่มระบบ ----------
+renderHistory();
+if(initFirebase()) startAuth();
+})();
+</script>
+</body>
+</html>
