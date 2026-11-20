@@ -39,6 +39,7 @@
     </div>
     <div class="userbox hidden" id="userBox">
       <div class="user-meta"><b id="userName"></b><span id="userRole"></span></div>
+      <a class="btn ghost small hidden" id="adminLink" href="admin.html">จัดการผู้ใช้</a>
       <button class="btn ghost small" id="logoutBtn" type="button">ออกจากระบบ</button>
     </div>
   </header>
@@ -352,6 +353,7 @@ function onSignedIn(){
   $('userRole').textContent = me.role === 'admin' ? 'แอดมิน' : 'สมาชิก';
   $('userBox').classList.remove('hidden');
   $('ownerFilterWrap').classList.toggle('hidden', me.role !== 'admin');
+  $('adminLink').classList.toggle('hidden', me.role !== 'admin');
   $('loginPass').value = '';
   setStatus('loginStatus', '');
   loadContactsLocal();                       // เติมช่องทางติดต่อที่เคยใช้ล่าสุด
@@ -366,6 +368,7 @@ function onSignedOut(){
   fillContacts(null);                        // ไม่ให้คนถัดไปเห็นข้อมูลของคนก่อนหน้า
   document.body.classList.add('locked');
   $('userBox').classList.add('hidden');
+  $('adminLink').classList.add('hidden');
   $('importBox').classList.add('hidden');
   renderHistory();
 }
