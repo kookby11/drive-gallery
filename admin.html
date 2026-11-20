@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>จัดการผู้ใช้ — Drive Gallery Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<style>
+.adm{ max-width:860px; margin:0 auto; padding:24px 16px 80px; display:flex; flex-direction:column; gap:16px; }
+.adm-head{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.adm-head h1{ font-size:20px; }
+.adm-head p{ font-size:12.5px; color:var(--ink-soft); }
+.adm-right{ margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+.gate-card{ text-align:center; max-width:360px; margin:20vh auto 0; }
+.gate-card p{ margin-bottom:12px; font-size:14px; }
+.pw-row{ display:flex; gap:8px; }
+.pw-row input{ flex:1; min-width:0; }
+.cred{ margin-top:14px; border-radius:14px; background:var(--accent-soft); padding:14px; font-size:13px; line-height:1.8; }
+.cred code{ font-family:ui-monospace,Menlo,Consolas,monospace; background:var(--card); padding:2px 6px; border-radius:6px; user-select:all; word-break:break-all; }
+.cred .row{ margin-top:10px; flex-wrap:wrap; }
+.u-item{ display:flex; align-items:center; gap:8px; padding:12px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+.u-info{ flex:1; min-width:200px; }
+.u-name{ font-weight:600; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.u-sub{ font-size:11.5px; color:var(--ink-soft); word-break:break-all; }
+.pill{ font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; background:var(--accent-soft); }
+.pill.admin{ background:var(--accent); color:#fff; }
+.u-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+@media (max-width:560px){ .adm .two{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="card gate-card">
+    <p id="gateMsg">กำลังตรวจสอบสิทธิ์...</p>
+    <a class="btn ghost small hidden" id="gateBack" href="index.html">กลับหน้าหลัก</a>
+  </div>
+</div>
+
+<div class="adm hidden" id="app">
+  <header class="adm-head">
+    <div class="app-logo">◎</div>
+    <div>
+      <h1>จัดการผู้ใช้</h1>
+      <p>เพิ่มทีมงาน กำหนดสิทธิ์ และถอนสิทธิ์</p>
+    </div>
+    <div class="adm-right">
+      <a class="btn ghost small" href="index.html">← กลับหน้าสร้างอัลบั้ม</a>
+      <button class="btn ghost small" id="logoutBtn" type="button">ออกจากระบบ</button>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2>เพิ่มผู้ใช้ใหม่</h2>
+    <div class="two">
+      <div class="field"><label>ชื่อที่จะแสดง</label>
+        <input type="text" id="fName" placeholder="เช่น ช่างโอ๊ต" maxlength="60"></div>
+      <div class="field"><label>อีเมล (ใช้ล็อกอิน)</label>
+        <input type="text" id="fEmail" inputmode="email" autocomplete="off" placeholder="name@example.com"></div>
+    </div>
+    <div class="two">
+      <div class="field"><label>รหัสผ่านชั่วคราว (อย่างน้อย 6 ตัว)</label>
+        <div class="pw-row">
+          <input type="text" id="fPass" autocomplete="off">
+          <button class="btn ghost small" id="genBtn" type="button">สุ่ม</button>
+        </div></div>
+      <div class="field"><label>สิทธิ์</label>
+        <select id="fRole">
+          <option value="member">สมาชิก — เห็นเฉพาะอัลบั้มของตัวเอง</option>
+          <option value="admin">แอดมิน — เห็นทุกอัลบั้ม และจัดการผู้ใช้</option>
+        </select></div>
+    </div>
+    <button class="btn accent block" id="addBtn" type="button">เพิ่มผู้ใช้</button>
+    <div class="status" id="addStatus"></div>
+
+    <div class="cred hidden" id="credBox">
+      <div id="credTitle"></div>
+      <div id="credLines"></div>
+      <div class="row">
+        <button class="btn small" id="credCopy" type="button">คัดลอกข้อความส่งให้ผู้ใช้</button>
+        <button class="btn ghost small" id="credReset" type="button">ส่งลิงก์ตั้งรหัสผ่านทางอีเมล</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>รายชื่อผู้ใช้ <span class="hint" id="userCount"></span></h2>
+    <div id="userList"></div>
+    <p class="hint" id="userEmpty">ยังไม่มีผู้ใช้</p>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="firebase-config.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+(function(){
+let auth = null, db = null, me = null, secApp = null;
+let users = [];
+let albumCounts = {};
+let lastCred = null;           // ข้อมูลของคนที่เพิ่งเพิ่ม (ใช้กับปุ่มคัดลอก/ส่งรีเซ็ต)
+
+function setMsg(id, msg, type){
+  const el = $(id);
+  el.className = 'status' + (type ? ' ' + type : '');
+  el.textContent = msg || '';
+}
+let toastTimer = null;
+function adminToast(msg){
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+async function copyTextSafe(text){
+  try{ await navigator.clipboard.writeText(text); return true; }
+  catch(e){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    }catch(e2){ return false; }
+  }
+}
+function gate(msg, showBack){
+  $('app').classList.add('hidden');
+  $('gate').classList.remove('hidden');
+  $('gateMsg').textContent = msg;
+  $('gateBack').classList.toggle('hidden', !showBack);
+}
+
+// ---------- ตรวจสิทธิ์: ต้องล็อกอิน และเป็นแอดมินเท่านั้น ----------
+function init(){
+  if(typeof firebase === 'undefined'){ gate('โหลดระบบ Firebase ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่', true); return; }
+  if(typeof FIREBASE_CONFIG === 'undefined' || !FIREBASE_CONFIG.apiKey){ gate('ยังไม่ได้ตั้งค่าไฟล์ firebase-config.js', true); return; }
+  firebase.initializeApp(FIREBASE_CONFIG);
+  auth = firebase.auth();
+  db = firebase.firestore();
+  auth.onAuthStateChanged(async (user) => {
+    if(!user){ location.replace('index.html'); return; }       // ยังไม่ล็อกอิน → กลับหน้าล็อกอิน
+    try{
+      const email = (user.email || '').toLowerCase();
+      const snap = await db.collection('users').doc(email).get();
+      if(!snap.exists) throw { code: 'not-allowed' };
+      const d = snap.data();
+      if(d.role !== 'admin'){ gate('หน้านี้สำหรับแอดมินเท่านั้น', true); return; }
+      me = { uid: user.uid, email, name: d.name || email };
+      showApp();
+    }catch(e){
+      gate('ตรวจสอบสิทธิ์ไม่สำเร็จ (' + ((e && e.code) || '') + ')', true);
+    }
+  });
+}
+
+function showApp(){
+  $('gate').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  $('fPass').value = genPassword();
+  db.collection('users').onSnapshot(snap => {
+    users = snap.docs.map(d => Object.assign({ email: d.id }, d.data()));
+    renderUsers();
+  }, err => adminToast('โหลดรายชื่อไม่สำเร็จ (' + (err.code || '') + ')'));
+  loadAlbumCounts();
+}
+
+async function loadAlbumCounts(){
+  try{
+    const snap = await db.collection('albums').get();
+    albumCounts = {};
+    snap.forEach(d => {
+      const e = String(d.data().ownerEmail || '').toLowerCase();
+      if(e) albumCounts[e] = (albumCounts[e] || 0) + 1;
+    });
+    renderUsers();
+  }catch(e){}
+}
+
+// ---------- สุ่มรหัสผ่าน ----------
+function genPassword(len = 10){
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // ตัดตัวที่สับสน เช่น l 1 O 0
+  const arr = new Uint32Array(len);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, n => chars[n % chars.length]).join('');
+}
+$('genBtn').addEventListener('click', () => { $('fPass').value = genPassword(); });
+
+// ---------- เพิ่มผู้ใช้ ----------
+function authErr(err){
+  const c = (err && err.code) || '';
+  if(c === 'auth/weak-password') return 'รหัสผ่านสั้นเกินไป (ต้องอย่างน้อย 6 ตัว)';
+  if(c === 'auth/invalid-email') return 'รูปแบบอีเมลไม่ถูกต้อง';
+  if(c === 'auth/network-request-failed') return 'เชื่อมต่ออินเทอร์เน็ตไม่ได้';
+  if(c === 'auth/admin-restricted-operation') return 'ระบบปิดการสมัครบัญชีอยู่ กรุณาเปิด "Enable create (sign-up)" ที่ Firebase → Authentication → Settings → User actions แล้วลองใหม่';
+  if(c === 'auth/operation-not-allowed') return 'ยังไม่ได้เปิดการล็อกอินแบบ Email/Password ใน Firebase';
+  if(c === 'permission-denied') return 'ไม่มีสิทธิ์บันทึก ตรวจว่าวางกฎฐานข้อมูลชุดใหม่แล้ว (ขั้นที่ 1)';
+  return 'ผิดพลาด (' + c + ')';
+}
+
+$('addBtn').addEventListener('click', async () => {
+  const name = $('fName').value.trim();
+  const email = $('fEmail').value.trim().toLowerCase();
+  const pass = $('fPass').value;
+  const role = $('fRole').value;
+
+  if(!name){ setMsg('addStatus', 'กรุณาใส่ชื่อที่จะแสดง', 'error'); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ setMsg('addStatus', 'รูปแบบอีเมลไม่ถูกต้อง', 'error'); return; }
+  if(pass.length < 6){ setMsg('addStatus', 'รหัสผ่านต้องมีอย่างน้อย 6 ตัว', 'error'); return; }
+  if(users.some(u => u.email === email)){ setMsg('addStatus', 'อีเมลนี้อยู่ในรายชื่อทีมแล้ว', 'error'); return; }
+
+  $('addBtn').disabled = true;
+  $('credBox').classList.add('hidden');
+  setMsg('addStatus', 'กำลังสร้างบัญชี...', 'info');
+  let existed = false;
+  try{
+    // ใช้แอปรองสร้างบัญชี เพื่อไม่ให้แอดมินที่ล็อกอินอยู่หลุดออกจากระบบ
+    secApp = secApp || firebase.initializeApp(FIREBASE_CONFIG, 'secondary');
+    const sa = secApp.auth();
+    await sa.setPersistence(firebase.auth.Auth.Persistence.NONE);
+    try{
+      await sa.createUserWithEmailAndPassword(email, pass);
+    }catch(err){
+      if(err && err.code === 'auth/email-already-in-use'){
+        if(!confirm('อีเมลนี้มีบัญชีล็อกอินอยู่แล้ว ต้องการเพิ่มสิทธิ์ใช้งานให้บัญชีเดิมใช่ไหม? (รหัสผ่านเดิมของเขาจะไม่เปลี่ยน)')){
+          setMsg('addStatus', '');
+          return;
+        }
+        existed = true;
+      }else{
+        throw err;
+      }
+    }finally{
+      try{ await sa.signOut(); }catch(e){}
+    }
+
+    await db.collection('users').doc(email).set({ name, role });
+
+    lastCred = { email, pass: existed ? '' : pass, name, existed };
+    showCred();
+    setMsg('addStatus', 'เพิ่มผู้ใช้เรียบร้อย', 'ok');
+    $('fName').value = ''; $('fEmail').value = '';
+    $('fPass').value = genPassword();
+    $('fRole').value = 'member';
+  }catch(err){
+    setMsg('addStatus', authErr(err), 'error');
+  }finally{
+    $('addBtn').disabled = false;
+  }
+});
+
+function loginUrl(){ return new URL('index.html', location.href).href; }
+function credText(c){
+  const lines = ['เข้าใช้งาน Drive Gallery Builder', 'เว็บ: ' + loginUrl(), 'อีเมล: ' + c.email];
+  if(c.pass) lines.push('รหัสผ่านชั่วคราว: ' + c.pass, 'แนะนำให้กด "ลืมรหัสผ่าน?" ที่หน้าล็อกอิน เพื่อตั้งรหัสผ่านของตัวเอง');
+  else lines.push('ใช้รหัสผ่านเดิมของคุณได้เลย');
+  return lines.join('\n');
+}
+function showCred(){
+  const c = lastCred;
+  $('credTitle').textContent = c.existed
+    ? 'เพิ่มสิทธิ์ให้ ' + c.name + ' แล้ว (ใช้รหัสผ่านเดิม)'
+    : 'สร้างบัญชีให้ ' + c.name + ' แล้ว ส่งข้อมูลนี้ให้เขา';
+  const box = $('credLines');
+  box.innerHTML = '';
+  const add = (label, val) => {
+    const d = document.createElement('div');
+    d.append(label + ' ');
+    const code = document.createElement('code'); code.textContent = val;
+    d.appendChild(code);
+    box.appendChild(d);
+  };
+  add('เว็บ:', loginUrl());
+  add('อีเมล:', c.email);
+  if(c.pass) add('รหัสผ่านชั่วคราว:', c.pass);
+  $('credBox').classList.remove('hidden');
+}
+$('credCopy').addEventListener('click', async () => {
+  if(!lastCred) return;
+  adminToast(await copyTextSafe(credText(lastCred)) ? 'คัดลอกข้อความแล้ว' : 'คัดลอกไม่สำเร็จ');
+});
+$('credReset').addEventListener('click', () => { if(lastCred) sendReset(lastCred.email); });
+
+async function sendReset(email){
+  try{
+    await auth.sendPasswordResetEmail(email);
+    adminToast('ส่งลิงก์ตั้งรหัสผ่านไปที่ ' + email + ' แล้ว');
+  }catch(err){
+    adminToast('ส่งไม่สำเร็จ (' + ((err && err.code) || '') + ')');
+  }
+}
+
+// ---------- รายชื่อผู้ใช้ ----------
+function renderUsers(){
+  const list = $('userList');
+  list.innerHTML = '';
+  const sorted = users.slice().sort((a, b) =>
+    (a.role === 'admin' ? 0 : 1) - (b.role === 'admin' ? 0 : 1) || String(a.name).localeCompare(String(b.name), 'th'));
+  $('userCount').textContent = sorted.length ? '(' + sorted.length + ' คน)' : '';
+  $('userEmpty').classList.toggle('hidden', sorted.length > 0);
+
+  const mk = (label, cls, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn small ' + cls; b.textContent = label;
+    b.addEventListener('click', fn);
+    return b;
+  };
+
+  sorted.forEach(u => {
+    const isMe = me && u.email === me.email;
+    const row = document.createElement('div');
+    row.className = 'u-item';
+
+    const info = document.createElement('div');
+    info.className = 'u-info';
+    const nm = document.createElement('div');
+    nm.className = 'u-name';
+    const nmText = document.createElement('span');
+    nmText.textContent = u.name + (isMe ? ' (คุณ)' : '');
+    const pill = document.createElement('span');
+    pill.className = 'pill' + (u.role === 'admin' ? ' admin' : '');
+    pill.textContent = u.role === 'admin' ? 'แอดมิน' : 'สมาชิก';
+    nm.append(nmText, pill);
+    const sub = document.createElement('div');
+    sub.className = 'u-sub';
+    const n = albumCounts[u.email] || 0;
+    sub.textContent = u.email + ' · ' + n + ' อัลบั้ม';
+    info.append(nm, sub);
+
+    const acts = document.createElement('div');
+    acts.className = 'u-actions';
+    acts.appendChild(mk('แก้ชื่อ', 'ghost', async () => {
+      const v = prompt('ชื่อที่จะแสดง', u.name);
+      if(v === null) return;
+      const nv = v.trim();
+      if(!nv || nv.length > 60){ adminToast('ชื่อต้องมี 1-60 ตัวอักษร'); return; }
+      try{ await db.collection('users').doc(u.email).update({ name: nv }); adminToast('แก้ชื่อแล้ว'); }
+      catch(err){ adminToast(authErr(err)); }
+    }));
+    acts.appendChild(mk('ส่งลิงก์รีเซ็ตรหัส', 'ghost', () => sendReset(u.email)));
+    if(!isMe){
+      const toAdmin = u.role !== 'admin';
+      acts.appendChild(mk(toAdmin ? 'ตั้งเป็นแอดมิน' : 'ตั้งเป็นสมาชิก', 'ghost', async () => {
+        const msg = toAdmin
+          ? 'ให้ ' + u.name + ' เป็นแอดมิน? เขาจะเห็นทุกอัลบั้มและจัดการผู้ใช้ได้'
+          : 'เปลี่ยน ' + u.name + ' เป็นสมาชิก? เขาจะเห็นเฉพาะอัลบั้มของตัวเอง';
+        if(!confirm(msg)) return;
+        try{ await db.collection('users').doc(u.email).update({ role: toAdmin ? 'admin' : 'member' }); adminToast('เปลี่ยนสิทธิ์แล้ว'); }
+        catch(err){ adminToast(authErr(err)); }
+      }));
+      acts.appendChild(mk('ถอนสิทธิ์', 'danger', async () => {
+        if(!confirm('ถอนสิทธิ์ ' + u.name + ' (' + u.email + ')?\nเขาจะเข้าใช้งานไม่ได้ทันที อัลบั้มที่เขาสร้างยังอยู่\n(บัญชีล็อกอินยังอยู่ใน Firebase ถ้าต้องการลบถาวรให้ลบที่ Authentication → Users)')) return;
+        try{ await db.collection('users').doc(u.email).delete(); adminToast('ถอนสิทธิ์แล้ว'); }
+        catch(err){ adminToast(authErr(err)); }
+      }));
+    }
+
+    row.append(info, acts);
+    list.appendChild(row);
+  });
+}
+
+$('logoutBtn').addEventListener('click', () => { if(auth) auth.signOut(); });
+
+init();
+})();
+</script>
+</body>
+</html>
