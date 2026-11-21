@@ -132,10 +132,12 @@ window.addEventListener('error', function(e){
 const $ = (id) => document.getElementById(id);
 (function(){
 const THUMB = 600, FULL = 2000;
+const POLL_MS = 30000;          // ถามรูปใหม่จาก Drive ทุกกี่มิลลิวินาที (30 วินาที)
 let cfg = null, files = [], dense = false;
 let lbIndex = -1, playTimer = null, heroTimer = null, heroFront = 'heroA';
 let lbQrOn = false;
 let contacts = null;
+let pollTimer = null, polling = false;
 const loader = createThumbLoader();
 const picked = new Set();
 let selectMode = false;
@@ -151,7 +153,8 @@ const I18N = {
     pickFirst:'แตะรูปที่ต้องการ แล้วกดดาวน์โหลด', selectOn:'โหมดเลือกรูป: แตะรูปเพื่อเลือก',
     confirmDl:(n)=>`ดาวน์โหลด ${n} รูป? เบราว์เซอร์อาจถามให้อนุญาตการดาวน์โหลดหลายไฟล์`,
     dlStart:(n)=>`กำลังเริ่มดาวน์โหลด ${n} รูป`,
-    contactTitle:'ติดต่อช่างภาพ', contactSub:'เลือกช่องทางที่สะดวก', call:'โทร'
+    contactTitle:'ติดต่อช่างภาพ', contactSub:'เลือกช่องทางที่สะดวก', call:'โทร',
+    newPhotos:(n)=>`มีรูปใหม่ ${n} รูป`
   },
   en: {
     qr:'QR Code', download:'Download', select:'Select', language:'Language', photographer:'Photographer',
@@ -162,7 +165,8 @@ const I18N = {
     pickFirst:'Tap the photos you want, then press Download', selectOn:'Select mode: tap photos to choose',
     confirmDl:(n)=>`Download ${n} photos? Your browser may ask to allow multiple downloads.`,
     dlStart:(n)=>`Starting download of ${n} photos`,
-    contactTitle:'Contact the photographer', contactSub:'Choose how you would like to reach out', call:'Call'
+    contactTitle:'Contact the photographer', contactSub:'Choose how you would like to reach out', call:'Call',
+    newPhotos:(n)=>`${n} new photo${n > 1 ? 's' : ''} added`
   }
 };
 let lang = 'th';
@@ -204,7 +208,7 @@ const IC = {
   ln: 'LINE',
   tel: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.6 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.6 3.6a1 1 0 0 1-.25 1z"/></svg>',
   ig: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r="1.1" fill="currentColor" stroke="none"/></svg>',
-  tt: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 3a5 5 0 0 0 4 4.4v3a8 8 0 0 1-4-1.2v6.3a6.5 6.5 0 1 1-6.5-6.5h.5v3.1a3.4 3.4 0 1 0 2.9 3.4V3h3.1z"/></svg>'
+  tt: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 3a5 5 0 0 0 4 4.4v3a8 8 0 0 1-4-1.2v6.3a6.5 6.5 0 1 1-6.5-6.5h.5v3.1a3.4 3.4 0 1 0 2.900 3.400V3h3.100z"/></svg>'
 };
 
 // สร้างลิงก์ให้ปลอดภัย: ยอมรับเฉพาะ http(s) หรือชื่อผู้ใช้ที่เราเติมโดเมนให้เอง
@@ -319,10 +323,81 @@ async function loadPhotos(){
     $('gbar').classList.toggle('hidden', !files.length);
     renderGallery();
     renderHero();
+    startPolling();                          // เริ่มตรวจรูปใหม่จาก Drive
   }catch(err){
     $('toolbar').classList.add('hidden');
     setStatus('status', friendlyError(err), 'error');
   }
+}
+
+// ---------- ตรวจรูปใหม่จาก Drive (เกือบเรียลไทม์) ----------
+function startPolling(){
+  stopPolling();
+  pollTimer = setInterval(pollFiles, POLL_MS);
+}
+function stopPolling(){
+  if(pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if(!cfg || !cfg.f) return;
+  if(document.hidden){ stopPolling(); }
+  else if(files.length){ pollFiles(); startPolling(); }     // กลับมาที่แท็บนี้ → เช็กทันที
+});
+
+async function pollFiles(){
+  if(polling || !cfg || !cfg.f || document.hidden) return;
+  polling = true;
+  try{
+    const fresh = await fetchDriveFiles(cfg.f, cfg.so);
+    syncFiles(fresh);
+  }catch(e){
+    // เงียบไว้ ลองใหม่ในรอบถัดไป
+  }finally{
+    polling = false;
+  }
+}
+
+function syncFiles(fresh){
+  if(!fresh.length && files.length) return;                 // กันกรณี Drive ตอบว่างชั่วคราว ไม่ให้รูปหายทั้งหน้า
+  const oldIds = new Set(files.map(f => f.id));
+  const newIds = new Set(fresh.map(f => f.id));
+  const added = fresh.filter(f => !oldIds.has(f.id));
+  const removed = files.filter(f => !newIds.has(f.id));
+  if(!added.length && !removed.length) return;
+
+  const current = lbIndex >= 0 ? files[lbIndex] : null;     // รูปที่กำลังเปิดดูอยู่ (ถ้ามี)
+  files = fresh;
+
+  removed.forEach(f => {
+    picked.delete(f.id);
+    const c = $('gallery').querySelector('.cell[data-id="' + f.id + '"]');
+    if(c) c.remove();
+  });
+
+  // แทรกรูปใหม่ตามลำดับที่ถูกต้อง โดยไม่วาดแกลเลอรีใหม่ทั้งหมด
+  added
+    .map(f => ({ f, idx: files.findIndex(x => x.id === f.id) }))
+    .sort((a, b) => a.idx - b.idx)
+    .forEach(({ f, idx }) => {
+      let ref = null;
+      for(let j = idx + 1; j < files.length && !ref; j++){
+        ref = $('gallery').querySelector('.cell[data-id="' + files[j].id + '"]');
+      }
+      const cell = makeCell(f);
+      $('gallery').insertBefore(cell, ref);                 // ref เป็น null = ต่อท้าย
+      loader.watch(cell.querySelector('img'), f, THUMB);
+    });
+
+  if(current){                                              // ไม่ให้ lightbox กระโดดไปรูปอื่น
+    const ni = files.findIndex(x => x.id === current.id);
+    if(ni < 0) closeLightbox(); else lbIndex = ni;
+  }
+  if(lbIndex >= 0) $('lbCounter').textContent = `${lbIndex + 1} / ${files.length}`;
+
+  $('toolbar').classList.toggle('hidden', !files.length);
+  renderCounts();
+  updateSelectUI();
+  if(added.length) gbarToast(t('newPhotos', added.length));
 }
 
 // ---------- หน้าปก ----------
@@ -359,27 +434,31 @@ function ratioOf(f){
   if(!m || !m.width || !m.height) return '3/4';
   return (m.rotation === 1 || m.rotation === 3) ? `${m.height}/${m.width}` : `${m.width}/${m.height}`;
 }
+function makeCell(f){
+  const cell = document.createElement('div');
+  cell.className = 'cell';
+  cell.dataset.id = f.id;
+  if(picked.has(f.id)) cell.classList.add('picked');
+  if(cfg.ly === 'masonry') cell.style.aspectRatio = ratioOf(f);
+  const img = document.createElement('img');
+  img.alt = f.name || '';
+  img.decoding = 'async';
+  cell.appendChild(img);
+  cell.addEventListener('click', () => {
+    if(selectMode) togglePick(cell, f.id);
+    else openLightbox(files.findIndex(x => x.id === f.id));   // หาตำแหน่งจาก id เพราะรายการอาจเปลี่ยนระหว่างดู
+  });
+  return cell;
+}
 function renderGallery(){
   loader.reset();
   const g = $('gallery');
   g.innerHTML = '';
   g.className = 'gallery ' + cfg.ly + (dense ? ' dense' : '');
-  files.forEach((f, i) => {
-    const cell = document.createElement('div');
-    cell.className = 'cell';
-    cell.dataset.id = f.id;
-    if(picked.has(f.id)) cell.classList.add('picked');
-    if(cfg.ly === 'masonry') cell.style.aspectRatio = ratioOf(f);
-    const img = document.createElement('img');
-    img.alt = f.name || '';
-    img.decoding = 'async';
-    cell.appendChild(img);
-    cell.addEventListener('click', () => {
-      if(selectMode) togglePick(cell, f.id);
-      else openLightbox(i);
-    });
+  files.forEach(f => {
+    const cell = makeCell(f);
     g.appendChild(cell);
-    loader.watch(img, f, THUMB);
+    loader.watch(cell.querySelector('img'), f, THUMB);
   });
 }
 $('densityBtn').addEventListener('click', () => { dense = !dense; $('gallery').classList.toggle('dense', dense); });
@@ -630,6 +709,7 @@ $('lbQr').addEventListener('click', () => setLbQr(!lbQrOn));
 
 // ---------- Lightbox ----------
 function openLightbox(i){
+  if(i < 0) return;
   lbIndex = i;
   showLb();
   $('lightbox').classList.add('open');
