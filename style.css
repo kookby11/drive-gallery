@@ -294,3 +294,40 @@ body.locked .builder, body.locked .edit-modal{ display:none !important; }
 .preview-note{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; font-size:12.5px; color:var(--ink-soft); }
 .preview-note span{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 @media (min-width:1000px){ #backToList{ display:none; } }
+/* ---------- แก้ตัวเลือกภาพหน้าปกที่ซ้อนกัน ---------- */
+.cover-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(72px,1fr));
+  grid-auto-rows:auto;
+  align-content:start;
+  gap:8px;
+  padding:2px;
+  max-height:340px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.cover-cell{
+  position:relative;
+  display:block;
+  height:0;
+  padding-bottom:100%;          /* ล็อกเป็นสี่เหลี่ยมจัตุรัสตามความกว้าง ไม่ถูกบีบ */
+  aspect-ratio:auto;
+  border:0;
+  border-radius:10px;
+  overflow:hidden;
+}
+.cover-cell img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.cover-cell.selected{
+  border:0;
+  box-shadow:none;
+  outline:3px solid var(--accent);
+  outline-offset:-3px;
+}
