@@ -154,7 +154,7 @@
     </section>
 
     <!-- ประวัติ -->
-    <section class="card">
+    <section class="card" id="historyCard">
       <div class="hist-head">
         <h2>ลิงก์ที่เคยสร้าง</h2>
         <div id="ownerFilterWrap" class="hidden"><select id="ownerFilter"></select></div>
@@ -169,7 +169,7 @@
   </div>
 
   <div class="preview-col">
-    <section class="card">
+    <section class="card" id="previewCard">
       <div class="preview-head">
         <h2>ตัวอย่าง</h2>
         <div class="seg" id="deviceSeg">
@@ -178,9 +178,13 @@
         </div>
         <button class="btn ghost small" id="refreshPreview" type="button">รีเฟรช</button>
       </div>
+      <div class="preview-note hidden" id="previewNote">
+        <span id="previewLabel"></span>
+        <button class="btn ghost small" id="backToList" type="button">↑ กลับรายการ</button>
+      </div>
       <div class="frame-wrap" id="frameWrap">
         <iframe class="preview-frame" id="previewFrame" title="ตัวอย่างหน้านำเสนอ"></iframe>
-        <div class="preview-empty" id="previewEmpty">ใส่ลิงก์ Google Drive แล้วกด "ตรวจสอบ" เพื่อดูตัวอย่าง</div>
+        <div class="preview-empty" id="previewEmpty">ใส่ลิงก์ Google Drive แล้วกด "ตรวจสอบ" หรือกดเลือกอัลบั้มในรายการ เพื่อดูตัวอย่าง</div>
       </div>
     </section>
   </div>
@@ -225,6 +229,7 @@ const CONTACT_KEY = 'driveGallery:contacts:';
 let verifiedFolderId = '';
 let verifiedFiles = [];
 let selectedCoverId = '';
+let previewId = null;                    // id ของอัลบั้มที่กำลังแสดงในช่องตัวอย่าง (ถ้าเลือกจากรายการ)
 const editState = { id: null };          // ถ้ามีค่า = กำลังแก้ไขอัลบั้มนี้ (id ของเอกสารใน Firestore)
 const coverLoader = createThumbLoader({ rootMargin: '200px 0px' });
 
@@ -366,6 +371,7 @@ function onSignedOut(){
   if(unsubAlbums){ unsubAlbums(); unsubAlbums = null; }
   if(editState.id) endEdit();
   fillContacts(null);                        // ไม่ให้คนถัดไปเห็นข้อมูลของคนก่อนหน้า
+  clearPreview();                            // ล้างช่องตัวอย่าง
   document.body.classList.add('locked');
   $('userBox').classList.add('hidden');
   $('adminLink').classList.add('hidden');
@@ -530,17 +536,59 @@ function renderCoverPicker(){
 // ---------- ตัวอย่าง ----------
 let previewTimer = null;
 function schedulePreview(delay = 900){ clearTimeout(previewTimer); previewTimer = setTimeout(updatePreview, delay); }
+
+// ตัวอย่างจากฟอร์ม (ตอนกรอก/แก้ไขข้อมูล)
 function updatePreview(){
   const cfg = readForm();
   if(!cfg.f || cfg.f !== verifiedFolderId) return;
+  previewId = null;                                      // กลับมาแสดงตามฟอร์ม ไม่ใช่อัลบั้มจากรายการ
+  $('previewNote').classList.add('hidden');
+  markPreviewing();
   $('previewEmpty').classList.add('hidden');
   $('previewFrame').src = buildFullUrl(cfg);
 }
+
+// ตัวอย่างจากอัลบั้มในรายการ (กดที่แถวในประวัติ)
+function previewAlbum(item){
+  clearTimeout(previewTimer);
+  previewId = item.id;
+  $('previewEmpty').classList.add('hidden');
+  $('previewFrame').src = item.url;
+  $('previewLabel').textContent = 'กำลังแสดง: ' + (item.title || 'ไม่มีชื่อ');
+  $('previewNote').classList.remove('hidden');
+  markPreviewing();
+  if(window.matchMedia('(max-width: 999px)').matches){   // มือถือ: ช่องตัวอย่างอยู่ใต้รายการ ให้เลื่อนลงไปดู
+    $('previewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+function clearPreview(){
+  previewId = null;
+  clearTimeout(previewTimer);
+  $('previewFrame').src = 'about:blank';
+  $('previewEmpty').classList.remove('hidden');
+  $('previewNote').classList.add('hidden');
+  markPreviewing();
+}
+function markPreviewing(){
+  document.querySelectorAll('#historyList .history-item').forEach(r => {
+    r.classList.toggle('previewing', !!previewId && r.dataset.id === previewId);
+  });
+}
+$('backToList').addEventListener('click', () => {
+  $('historyCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
 ['input', 'change'].forEach(ev => $('formMain').addEventListener(ev, e => {
   if(e.target.id === 'folderInput') return;
   schedulePreview();
 }));
-$('refreshPreview').addEventListener('click', updatePreview);
+$('refreshPreview').addEventListener('click', () => {
+  if(previewId){
+    const item = albums.find(a => a.id === previewId);
+    if(item){ $('previewFrame').src = item.url; return; }
+  }
+  updatePreview();
+});
 $('deviceSeg').addEventListener('click', e => {
   const btn = e.target.closest('button');
   if(!btn) return;
@@ -695,14 +743,31 @@ function renderHistory(){
   $('historyEmpty').classList.toggle('hidden', items.length > 0);
   items.forEach(item => {
     const row = document.createElement('div');
-    row.className = 'history-item' + (editState.id && item.id === editState.id ? ' editing' : '');
+    row.className = 'history-item'
+      + (editState.id && item.id === editState.id ? ' editing' : '')
+      + (previewId && item.id === previewId ? ' previewing' : '');
+    row.dataset.id = item.id;
+
     const info = document.createElement('div');
     info.className = 'info';
+    info.tabIndex = 0;                                   // เข้าถึงด้วยคีย์บอร์ดได้
+    info.setAttribute('role', 'button');
+    info.title = 'กดเพื่อดูตัวอย่าง';
     const name = document.createElement('div'); name.className = 'name'; name.textContent = item.title;
     const sub = document.createElement('div'); sub.className = 'sub';
     const owner = (me && item.ownerUid !== me.uid) ? 'โดย ' + (item.ownerName || item.ownerEmail) : '';
     sub.textContent = [owner, item.date, item.count ? item.count + ' ภาพ' : '', new Date(item.upd).toLocaleString('th-TH')].filter(Boolean).join(' · ');
     info.append(name, sub);
+    info.addEventListener('keydown', e => {
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); previewAlbum(item); }
+    });
+
+    // กดที่แถว (นอกจากปุ่ม) = แสดงตัวอย่างอัลบั้มนี้
+    row.addEventListener('click', e => {
+      if(e.target.closest('button')) return;
+      previewAlbum(item);
+    });
+
     const mk = (label, cls, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small ' + cls; b.textContent = label; b.addEventListener('click', fn); return b; };
     row.append(info,
       mk('คัดลอก', 'ghost', async () => toast(await copyText(item.url) ? 'คัดลอกลิงก์แล้ว' : 'คัดลอกไม่สำเร็จ')),
@@ -718,6 +783,7 @@ function renderHistory(){
       mk('ลบ', 'danger', async () => {
         if(!confirm('ลบ "' + item.title + '" ออกจากประวัติ?')) return;
         if(item.id === editState.id) endEdit();
+        if(item.id === previewId) clearPreview();
         try{ await db.collection('albums').doc(item.id).delete(); }
         catch(err){ toast('ลบไม่สำเร็จ (' + (err.code || '') + ')'); }
       }),
